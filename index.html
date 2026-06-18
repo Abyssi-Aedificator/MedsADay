@@ -190,7 +190,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.2.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.2.1</span></div>
     <div class="spacer"></div>
   </div>
 
@@ -482,14 +482,27 @@ function statusOf(d,dateKey){
 }
 
 /* ---------- actions ---------- */
-function setStatus(medId,time,status,dateKey){
+function setStatus(medId,time,status,dateKey,notime){
   const dk=dateKey||todayKey();
   state.log[dk]=state.log[dk]||{};
   const k=`${medId}-${time}`;
   if(logStatus(state.log[dk][k])===status){delete state.log[dk][k];}
-  else{state.log[dk][k]={s:status,at:nowHHMM()}; if(status==='taken'){const m=state.meds.find(x=>x.id===medId); if(m&&m.supply>0)m.supply--;}}
+  else{state.log[dk][k]=notime?{s:status}:{s:status,at:nowHHMM()}; if(status==='taken'){const m=state.meds.find(x=>x.id===medId); if(m&&m.supply>0)m.supply--;}}
   save();renderAll();
 }
+
+// Tap = mark taken with the current time · Hold (long press) = mark taken without a time
+let _hold={t:null,fired:false};
+function holdStart(e,id,time,dk){
+  if(e.button!==undefined&&e.button!==0)return; // left/primary only
+  e.preventDefault();_hold.fired=false;
+  _hold.t=setTimeout(()=>{_hold.fired=true;_hold.t=null;setStatus(id,time,'taken',dk,true);toast('Marked taken (no time)');},500);
+}
+function holdEnd(e,id,time,dk){
+  if(_hold.t){clearTimeout(_hold.t);_hold.t=null; if(!_hold.fired)setStatus(id,time,'taken',dk,false);}
+  _hold.fired=false;
+}
+function holdCancel(){if(_hold.t){clearTimeout(_hold.t);_hold.t=null;}}
 
 /* ---------- rendering ---------- */
 function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory();renderReports();updateCounts();updateBackupInfo();}
@@ -519,7 +532,7 @@ function doseRow(d,withSkip,dateKey){
     <div class="pill ${d.med.color}">${iconSvg(d.med.icon,d.med.color)}</div>
     <div class="info"><b>${d.med.name}</b><span>${d.med.dose} · ${d.med.form}${d.med.note?' · '+d.med.note:''}</span></div>
     <span class="tag ${st}">${tagTxt}</span>
-    ${st!=='taken'?`<button class="take-btn" title="Mark taken" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">✓</button>`:`<button class="take-btn" title="Undo" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">↺</button>`}
+    ${st!=='taken'?`<button class="take-btn" title="Tap = taken now · Hold = taken (no time)" oncontextmenu="return false" onpointerdown="holdStart(event,${d.med.id},'${d.time}','${dk}')" onpointerup="holdEnd(event,${d.med.id},'${d.time}','${dk}')" onpointerleave="holdCancel()" onpointercancel="holdCancel()">✓</button>`:`<button class="take-btn" title="Undo" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">↺</button>`}
     ${withSkip&&st!=='skip'&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">✕</button>`:''}
   </div>`;
 }
@@ -874,6 +887,9 @@ function restoreData(e){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.2.1',date:'June 2026',items:[
+    'Long-press the ✓ button to mark a dose taken without recording a time'
+  ]},
   {ver:'Alpha 0.2.0',date:'June 2026',items:[
     'Installable as a PWA — add to home screen on Chrome Android & desktop',
     'Works offline via a service worker that caches the app',
