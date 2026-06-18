@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MedsADay — Medication Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0c1020">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MedsADay">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
   :root{
     --accent:#5b9dff; --accent-2:#7c6cff;
@@ -182,7 +190,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.1.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.2.0</span></div>
     <div class="spacer"></div>
   </div>
 
@@ -866,6 +874,11 @@ function restoreData(e){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.2.0',date:'June 2026',items:[
+    'Installable as a PWA — add to home screen on Chrome Android & desktop',
+    'Works offline via a service worker that caches the app',
+    'Added app icons (standard + maskable) and a web app manifest'
+  ]},
   {ver:'Alpha 0.1.0',date:'June 2026',items:[
     'Initial release — Today, Schedule, Medications, History & Reports',
     'Add/edit meds with custom icons, colors, times, supply & start/end dates',
@@ -883,6 +896,11 @@ function renderChangelog(){
 
 load();renderAll();renderChangelog();
 setInterval(renderAll,60000); // refresh statuses each minute
+
+// PWA: register service worker so the app is installable & works offline
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>
