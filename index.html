@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedsADay — Medication Tracker</title>
+<style>
+  :root{
+    --accent:#5b9dff; --accent-2:#7c6cff;
+    --good:#3ecf8e; --warn:#ffb454; --danger:#ff6b81;
+    --text:#f4f6fb; --text-dim:#aab3c5;
+    --glass:rgba(28,33,48,.55); --stroke:rgba(255,255,255,.10);
+    --stroke-strong:rgba(255,255,255,.18); --radius:14px;
+    font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{color:var(--text);display:flex;align-items:center;justify-content:center;
+    background:
+      radial-gradient(900px 600px at 12% 18%, #2a4a8f 0%, transparent 55%),
+      radial-gradient(1000px 700px at 88% 12%, #6c3a8f 0%, transparent 55%),
+      radial-gradient(1200px 900px at 70% 100%, #1f6b6b 0%, transparent 60%),
+      linear-gradient(135deg,#0c1020,#161a2e 60%,#0c1020);
+    background-attachment:fixed;}
+  .window{width:100vw;height:100vh;display:grid;grid-template-rows:auto 1fr;
+    background:rgba(18,22,36,.45);backdrop-filter:blur(40px) saturate(150%);
+    -webkit-backdrop-filter:blur(40px) saturate(150%);overflow:hidden;}
+  .titlebar{height:44px;display:flex;align-items:center;gap:10px;padding:0 8px 0 16px;
+    border-bottom:1px solid var(--stroke);background:rgba(255,255,255,.03);}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px}
+  .pill-logo{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    display:grid;place-items:center;font-size:13px;box-shadow:0 4px 12px rgba(91,157,255,.4)}
+  .titlebar .spacer{flex:1}
+  .win-btns button{width:42px;height:30px;border:0;background:transparent;color:var(--text-dim);
+    border-radius:7px;font-size:13px;cursor:pointer}
+  .win-btns button:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .win-btns .close:hover{background:#e44b5a;color:#fff}
+  .body{display:grid;grid-template-columns:230px 1fr;min-height:0}
+  .sidebar{padding:16px 12px;display:flex;flex-direction:column;gap:6px;border-right:1px solid var(--stroke);
+    background:rgba(255,255,255,.02);}
+  .search{display:flex;align-items:center;gap:8px;padding:9px 12px;margin-bottom:8px;background:rgba(0,0,0,.25);
+    border:1px solid var(--stroke);border-radius:10px;color:var(--text-dim);font-size:13px}
+  .search input{background:transparent;border:0;outline:0;color:var(--text);width:100%;font-size:13px}
+  .version{font-size:10.5px;font-weight:500;color:var(--text-dim);opacity:.7;letter-spacing:.3px;padding:2px 7px;border:1px solid var(--stroke);border-radius:20px}
+  .nav{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--text-dim);
+    cursor:pointer;font-size:13.5px;font-weight:500;position:relative;user-select:none}
+  .nav:hover{background:rgba(255,255,255,.06);color:var(--text)}
+  .nav.active{background:rgba(91,157,255,.16);color:#fff}
+  .nav.active::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--accent)}
+  .nav .ic{width:18px;text-align:center}
+  .nav .count{margin-left:auto;font-size:11px;background:rgba(255,255,255,.12);padding:1px 7px;border-radius:20px}
+  .sidebar .grow{flex:1}
+  .profile{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--stroke)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#3ecf8e,#5b9dff);display:grid;place-items:center;font-weight:600;font-size:13px;cursor:pointer;transition:transform .1s}
+  .avatar:hover{transform:scale(1.08);box-shadow:0 0 0 2px var(--accent)}
+  .profile small{color:var(--text-dim)}
+  .content{padding:22px 26px;overflow:auto;min-height:0}
+  .pagehead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+  .pagehead h1{margin:0;font-size:24px;font-weight:600}
+  .pagehead p{margin:4px 0 0;color:var(--text-dim);font-size:13px}
+  .btn{border:1px solid var(--stroke-strong);background:rgba(255,255,255,.06);color:var(--text);padding:9px 16px;
+    border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .btn:hover{background:rgba(255,255,255,.12)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;box-shadow:0 8px 20px rgba(91,157,255,.35)}
+  .btn.sm{padding:6px 12px;font-size:12px}
+  .btn.danger:hover{background:var(--danger);border-color:transparent}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .card{background:var(--glass);border:1px solid var(--stroke);border-radius:var(--radius);padding:16px;
+    backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+  .stat .lbl{color:var(--text-dim);font-size:12px;font-weight:500}
+  .stat .num{font-size:28px;font-weight:700;margin-top:6px}
+  .stat .sub{font-size:11.5px;margin-top:4px}
+  .ring{width:54px;height:54px;border-radius:50%;float:right;display:grid;place-items:center}
+  .ring::after{content:attr(data-p) "%";width:40px;height:40px;border-radius:50%;background:rgba(20,24,38,.9);display:grid;place-items:center;font-size:12px;font-weight:700}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+  .card h2{margin:0 0 14px;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+  .card h2 a{font-size:12px;color:var(--accent);text-decoration:none;font-weight:500;cursor:pointer}
+  .dose{display:flex;align-items:center;gap:14px;padding:12px;border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.03);border:1px solid var(--stroke)}
+  .dose:hover{background:rgba(255,255,255,.07)}
+  .dose.done{opacity:.6}
+  .time{font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;width:64px}
+  .time small{display:block;color:var(--text-dim);font-weight:500;font-size:10px}
+  .pill{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font-size:18px;background:rgba(255,255,255,.06);border:1px solid var(--stroke)}
+  .pill.blue{background:rgba(91,157,255,.18)} .pill.purple{background:rgba(124,108,255,.18)}
+  .pill.green{background:rgba(62,207,142,.18)} .pill.orange{background:rgba(255,140,59,.18)}
+  .pill.pink{background:rgba(255,107,129,.18)}
+  .pill.teal{background:rgba(45,212,191,.18)} .pill.red{background:rgba(255,92,92,.18)} .pill.amber{background:rgba(244,195,68,.18)}
+  .dose .info{flex:1;min-width:0}
+  .dose .info b{font-size:13.5px} .dose .info span{display:block;color:var(--text-dim);font-size:11.5px;margin-top:2px}
+  .tag{font-size:10.5px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
+  .tag.due{background:rgba(255,180,84,.18);color:var(--warn)}
+  .tag.taken{background:rgba(62,207,142,.18);color:var(--good)}
+  .tag.miss{background:rgba(255,107,129,.18);color:var(--danger)}
+  .tag.skip{background:rgba(170,179,197,.18);color:var(--text-dim)}
+  .take-btn{border:1px solid var(--stroke-strong);background:rgba(255,255,255,.06);color:var(--text);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px}
+  .take-btn:hover{background:var(--good);border-color:transparent}
+  .skip-btn{border:1px solid var(--stroke-strong);background:rgba(255,255,255,.06);color:var(--text-dim);width:30px;height:30px;border-radius:9px;cursor:pointer;font-size:14px}
+  .skip-btn:hover{background:var(--danger);border-color:transparent;color:#fff}
+  .datebar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .datebar input[type=date]{padding:8px 12px;background:rgba(0,0,0,.3);border:1px solid var(--stroke);border-radius:10px;color:var(--text);font-size:13px;font-family:inherit;color-scheme:dark;outline:0}
+  .datebar input[type=date]:focus{border-color:var(--accent)}
+  .datelabel{margin-left:auto;color:var(--text-dim);font-size:12.5px}
+  .changelog{display:flex;flex-direction:column;gap:18px}
+  .cl-entry{position:relative;padding-left:18px;border-left:2px solid var(--stroke)}
+  .cl-entry::before{content:"";position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(91,157,255,.15)}
+  .cl-head{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+  .cl-ver{font-size:13.5px;font-weight:700}
+  .cl-date{font-size:11.5px;color:var(--text-dim)}
+  .cl-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .cl-list li{font-size:12.5px;color:var(--text-dim);padding-left:16px;position:relative}
+  .cl-list li::before{content:"›";position:absolute;left:2px;color:var(--accent)}
+  .seg{display:flex;gap:2px;background:rgba(0,0,0,.25);border:1px solid var(--stroke);border-radius:10px;padding:3px}
+  .seg-btn{border:0;background:transparent;color:var(--text-dim);padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .seg-btn:hover{color:var(--text)}
+  .seg-btn.active{background:rgba(91,157,255,.2);color:#fff}
+  .donut-wrap{display:flex;align-items:center;gap:22px}
+  .donut{width:130px;height:130px;border-radius:50%;flex-shrink:0;display:grid;place-items:center}
+  .donut::after{content:attr(data-c);width:88px;height:88px;border-radius:50%;background:rgba(20,24,38,.92);display:grid;place-items:center;font-size:22px;font-weight:700}
+  .legend{display:flex;flex-direction:column;gap:9px;font-size:12.5px}
+  .legend .li{display:flex;align-items:center;gap:9px}
+  .legend .sw{width:11px;height:11px;border-radius:3px}
+  .legend b{margin-left:auto;padding-left:12px}
+  .hbars{display:flex;flex-direction:column;gap:13px;padding-top:2px}
+  .hrow{font-size:12.5px}
+  .hrow .top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .hrow .top b{margin-left:auto;color:var(--text-dim);font-weight:600}
+  .htrack{height:8px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+  .htrack i{display:block;height:100%;border-radius:6px;transition:width .3s}
+  .week{display:flex;align-items:flex-end;gap:10px;height:130px;padding-top:8px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+  .bar .col{width:100%;border-radius:7px 7px 4px 4px;background:linear-gradient(180deg,var(--accent),rgba(124,108,255,.5));min-height:3px;transition:height .3s}
+  .bar small{color:var(--text-dim);font-size:11px}
+  .meds-mini{display:flex;flex-direction:column;gap:9px}
+  .medrow{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .medrow .dot{width:9px;height:9px;border-radius:50%}
+  .medrow .supply{margin-left:auto;color:var(--text-dim);font-size:11px}
+  .supply-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.1);width:90px;overflow:hidden;margin-left:8px}
+  .supply-bar i{display:block;height:100%;border-radius:5px}
+  /* med cards grid */
+  .medgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .medcard{display:flex;gap:14px;align-items:flex-start}
+  .medcard .info{flex:1}
+  .medcard .info h3{margin:0;font-size:15px}
+  .medcard .info p{margin:4px 0 0;color:var(--text-dim);font-size:12px}
+  .medcard .acts{display:flex;gap:6px;margin-top:10px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chip{font-size:10.5px;padding:3px 8px;border-radius:20px;background:rgba(255,255,255,.08);color:var(--text-dim)}
+  /* history table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--text-dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--stroke)}
+  td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.05)}
+  tr:hover td{background:rgba(255,255,255,.03)}
+  .empty{text-align:center;color:var(--text-dim);padding:40px;font-size:13px}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(6,8,16,.55);backdrop-filter:blur(6px);display:none;
+    align-items:center;justify-content:center;z-index:50}
+  .overlay.show{display:flex}
+  .modal{width:440px;max-height:88vh;overflow:auto;background:rgba(24,28,44,.85);border:1px solid var(--stroke-strong);
+    border-radius:18px;padding:24px;box-shadow:0 40px 80px rgba(0,0,0,.6);backdrop-filter:blur(30px)}
+  .modal h2{margin:0 0 18px;font-size:18px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:500}
+  .field input,.field select{width:100%;padding:10px 12px;background:rgba(0,0,0,.3);border:1px solid var(--stroke);
+    border-radius:10px;color:var(--text);font-size:13px;outline:0;font-family:inherit}
+  .field input[type=date]{color-scheme:dark}
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .icon-pick{display:flex;gap:8px;flex-wrap:wrap}
+  .icon-pick .opt{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:18px;cursor:pointer;border:2px solid transparent;background:rgba(255,255,255,.06)}
+  .icon-pick .opt.sel{border-color:var(--accent);background:rgba(91,157,255,.2)}
+  .modal-acts{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+  .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(24,28,44,.95);
+    border:1px solid var(--stroke-strong);padding:12px 20px;border-radius:12px;font-size:13px;font-weight:500;
+    box-shadow:0 20px 40px rgba(0,0,0,.5);opacity:0;transition:.3s;z-index:60;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.good{border-left:3px solid var(--good)}
+  .page{display:none} .page.active{display:block}
+  ::-webkit-scrollbar{width:10px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:10px;border:3px solid transparent;background-clip:padding-box}
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.1.0</span></div>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="nav active" data-page="today"><span class="ic">🏠</span> Today <span class="count" id="nav-today">0</span></div>
+      <div class="nav" data-page="schedule"><span class="ic">📅</span> Schedule</div>
+      <div class="nav" data-page="meds"><span class="ic">💊</span> My Medications <span class="count" id="nav-meds">0</span></div>
+      <div class="nav" data-page="history"><span class="ic">🕑</span> History</div>
+      <div class="nav" data-page="reports"><span class="ic">📊</span> Reports</div>
+      <div class="grow"></div>
+      <div class="nav" data-page="settings"><span class="ic">⚙️</span> Settings</div>
+      <div class="profile">
+        <div class="avatar" id="avatar" title="Click to change name" onclick="editName()">AK</div>
+        <div><b style="font-size:13px" id="profile-name">Username</b></div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- TODAY -->
+      <section class="page active" id="page-today">
+        <div class="pagehead">
+          <div><h1 id="greeting">Today</h1><p id="subtitle"></p></div>
+          <button class="btn primary" onclick="openMedModal()">＋ Add medication</button>
+        </div>
+        <div class="stats">
+          <div class="card stat">
+            <div class="ring" id="ring" data-p="0"></div>
+            <div class="lbl">Today's adherence</div>
+            <div class="num" id="adh-num">0%</div>
+            <div class="sub" id="adh-sub" style="color:var(--good)"></div>
+          </div>
+          <div class="card stat">
+            <div class="lbl">Current streak</div>
+            <div class="num" id="streak">0 🔥</div>
+            <div class="sub" style="color:var(--text-dim)">days on track</div>
+          </div>
+          <div class="card stat">
+            <div class="lbl">Next dose</div>
+            <div class="num" id="next-time">—</div>
+            <div class="sub" id="next-sub" style="color:var(--warn)"></div>
+          </div>
+          <div class="card stat">
+            <div class="lbl">Refills needed</div>
+            <div class="num" id="refill-num">0</div>
+            <div class="sub" id="refill-sub" style="color:var(--danger)"></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <h2>Today's schedule <a onclick="go('schedule')">Full schedule →</a></h2>
+            <div id="today-list"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card">
+              <h2>This week's adherence</h2>
+              <div class="week" id="week-chart"></div>
+            </div>
+            <div class="card" style="flex:1">
+              <h2>Supply levels <a onclick="go('meds')">Manage →</a></h2>
+              <div class="meds-mini" id="supply-list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCHEDULE -->
+      <section class="page" id="page-schedule">
+        <div class="pagehead"><div><h1>Schedule</h1><p id="schedule-sub">Doses for the selected day, sorted by time</p></div>
+          <button class="btn primary" onclick="openMedModal()">＋ Add medication</button></div>
+        <div class="card">
+          <div class="datebar">
+            <button class="btn sm" onclick="shiftDate(-1)" title="Previous day">‹</button>
+            <input type="date" id="schedule-date" onchange="setScheduleDate(this.value)">
+            <button class="btn sm" onclick="shiftDate(1)" title="Next day">›</button>
+            <button class="btn sm" onclick="setScheduleDate(todayKey())">Today</button>
+            <span class="datelabel" id="schedule-summary"></span>
+          </div>
+          <div id="schedule-list"></div>
+        </div>
+      </section>
+
+      <!-- MEDS -->
+      <section class="page" id="page-meds">
+        <div class="pagehead"><div><h1>My Medications</h1><p id="meds-count"></p></div>
+          <button class="btn primary" onclick="openMedModal()">＋ Add medication</button></div>
+        <div class="medgrid" id="meds-grid"></div>
+      </section>
+
+      <!-- HISTORY -->
+      <section class="page" id="page-history">
+        <div class="pagehead"><div><h1>History</h1><p>Your full intake log</p></div>
+          <button class="btn sm danger" onclick="clearHistory()">Clear log</button></div>
+        <div class="card"><table><thead><tr><th>When</th><th>Medication</th><th>Dose</th><th>Status</th></tr></thead>
+          <tbody id="history-body"></tbody></table>
+          <div class="empty" id="history-empty" style="display:none">No intake logged yet. Mark a dose as taken to start your history.</div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="page" id="page-reports">
+        <div class="pagehead"><div><h1>Reports</h1><p id="r-sub">Your adherence insights</p></div>
+          <div class="seg" id="range-seg">
+            <button class="seg-btn active" data-r="7" onclick="setRange(7)">7 days</button>
+            <button class="seg-btn" data-r="14" onclick="setRange(14)">14 days</button>
+            <button class="seg-btn" data-r="30" onclick="setRange(30)">30 days</button>
+          </div>
+        </div>
+        <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+          <div class="card stat"><div class="ring" id="r-ring" data-p="0"></div><div class="lbl">Adherence</div><div class="num" id="r-adh">0%</div><div class="sub" style="color:var(--text-dim)">doses taken in range</div></div>
+          <div class="card stat"><div class="lbl">Doses taken</div><div class="num" id="r-taken" style="color:var(--good)">0</div><div class="sub" style="color:var(--text-dim)">of <span id="r-sched">0</span> scheduled</div></div>
+          <div class="card stat"><div class="lbl">Missed</div><div class="num" id="r-missed" style="color:var(--danger)">0</div><div class="sub" style="color:var(--text-dim)"><span id="r-skipped">0</span> skipped on purpose</div></div>
+          <div class="card stat"><div class="lbl">Best streak</div><div class="num" id="r-streak">0 🔥</div><div class="sub" style="color:var(--text-dim)">consecutive days</div></div>
+          <div class="card stat"><div class="lbl">Active meds</div><div class="num" id="r-meds">0</div><div class="sub" style="color:var(--text-dim)">being tracked</div></div>
+          <div class="card stat"><div class="lbl">Avg / day</div><div class="num" id="r-perday">0</div><div class="sub" style="color:var(--text-dim)">doses scheduled</div></div>
+        </div>
+        <div class="grid2" style="margin-bottom:16px">
+          <div class="card"><h2>Adherence trend</h2><div class="week" id="report-chart" style="height:170px"></div></div>
+          <div class="card"><h2>Status breakdown</h2>
+            <div class="donut-wrap"><div class="donut" id="r-donut"></div><div class="legend" id="r-legend"></div></div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h2>Adherence by medication</h2><div id="r-permed" class="hbars"></div></div>
+          <div class="card"><h2>Doses by time of day</h2><div id="r-period" class="hbars"></div></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page" id="page-settings">
+        <div class="pagehead"><div><h1>Settings</h1><p>App preferences and data</p></div></div>
+        <div class="card" style="margin-bottom:14px">
+          <h2>Backup &amp; restore</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-top:0">Your backup includes <b id="bk-meds">0 medications</b>, <b id="bk-log">0 intake records</b> and your <b id="bk-name">display name</b>. Save it to a file, or restore it on this or another device — everything stays local, nothing leaves your device.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn" onclick="exportData()">⬇ Back up to file</button>
+            <button class="btn" onclick="document.getElementById('restore-file').click()">⬆ Restore from file</button>
+            <input type="file" id="restore-file" accept="application/json,.json" style="display:none" onchange="restoreData(event)">
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h2>Data</h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-top:0">Reset the app or load demo content to explore the features.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn" onclick="loadSample()">↺ Load sample data</button>
+            <button class="btn danger" onclick="resetAll()">🗑 Reset everything</button>
+          </div>
+        </div>
+        <div class="card"><h2>Changelog</h2>
+          <div class="changelog" id="changelog"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title">Add medication</h2>
+    <input type="hidden" id="m-id">
+    <div class="field"><label>Name</label><input id="m-name" placeholder="e.g. Metformin"></div>
+    <div class="row">
+      <div class="field"><label>Dose</label><input id="m-dose" placeholder="500 mg"></div>
+      <div class="field"><label>Form / qty</label><input id="m-form" placeholder="1 tablet"></div>
+    </div>
+    <div class="field"><label>Times (comma separated, 24h)</label><input id="m-times" placeholder="08:00, 22:00"></div>
+    <div class="row">
+      <div class="field"><label>Instructions</label><input id="m-note" placeholder="with food"></div>
+      <div class="field"><label>Supply (doses left)</label><input id="m-supply" type="number" placeholder="30"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Start date</label><input id="m-start" type="date"></div>
+      <div class="field"><label>End date (optional)</label><input id="m-end" type="date"></div>
+    </div>
+    <div class="field"><label>Icon</label>
+      <div class="icon-pick" id="icon-pick"></div>
+    </div>
+    <div class="field"><label>Color</label>
+      <div class="icon-pick" id="color-pick"></div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveMed()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Name modal -->
+<div class="overlay" id="name-overlay">
+  <div class="modal" style="width:360px">
+    <h2>Your name</h2>
+    <div class="field"><label>Display name</label><input id="name-input" placeholder="e.g. Alex Kim" onkeydown="if(event.key==='Enter')saveName();if(event.key==='Escape')closeNameModal()"></div>
+    <div class="modal-acts">
+      <button class="btn" onclick="closeNameModal()">Cancel</button>
+      <button class="btn primary" onclick="saveName()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY='medsaday.v1';
+let state={meds:[],log:{},name:'Username'}; // log keyed by date -> {medId-time: 'taken'|'skipped'}
+let selIcon='pill', selColor='blue';
+
+const COLORS={blue:'#5b9dff',purple:'#7c6cff',green:'#3ecf8e',orange:'#ff8c3b',pink:'#ff6b81',teal:'#2dd4bf',red:'#ff5c5c',amber:'#f4c344'};
+const ICONS={
+  // medication forms
+  pill:'<path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7z"/><path d="m8.5 8.5 7 7"/>',
+  syringe:'<path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L14 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/>',
+  droplet:'<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+  inhaler:'<rect x="9" y="8" width="9" height="13" rx="2"/><path d="M9 13H6a2 2 0 0 1-2-2l.6-3.6A2 2 0 0 1 6.5 6H13"/><path d="M14 6V3"/>',
+  // physical health
+  heart:'<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.49 4.04 3 5.5l7 7Z"/><path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27"/>',
+  lungs:'<path d="M6.081 20c1.36 0 2.232-1.18 2.5-2.5.268-1.32.5-3 .5-5.5 0-1.66-1.34-3-3-3s-3 1.34-3 3c0 2 .5 4 .5 6 0 1.5.64 2 2 2Z"/><path d="M17.919 20c-1.36 0-2.232-1.18-2.5-2.5-.268-1.32-.5-3-.5-5.5 0-1.66 1.34-3 3-3s3 1.34 3 3c0 2-.5 4-.5 6 0 1.5-.64 2-2 2Z"/><path d="M12 3v12"/>',
+  bone:'<path d="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5Z"/>',
+  thermometer:'<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+  activity:'<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+  // mental health
+  brain:'<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>',
+  smile:'<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  eye:'<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0Z"/><circle cx="12" cy="12" r="3"/>',
+  shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  // general / supplements
+  leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+  cross:'<path d="M11 2a2 2 0 0 0-2 2v5H4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h5v5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-5h5a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2h-5V4a2 2 0 0 0-2-2z"/>'
+};
+const ICON_MIGRATE={'💊':'pill','🔵':'pill','🟢':'leaf','🟠':'cross','💉':'syringe','🩹':'cross','🌿':'leaf','🧴':'inhaler','💧':'droplet','🫧':'heart','flask':'lungs'};
+const iconKey=v=>ICONS[v]?v:(ICON_MIGRATE[v]||'pill');
+const iconSvg=(key,color,size)=>`<svg viewBox="0 0 24 24" width="${size||22}" height="${size||22}" fill="none" stroke="${COLORS[color]||COLORS.blue}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[iconKey(key)]}</svg>`;
+
+const todayKey=()=> new Date().toISOString().slice(0,10);
+const fmtTime=t=>{const[h,m]=t.split(':').map(Number);const ap=h<12?'AM':'PM';const hh=((h+11)%12)+1;return `${hh}:${String(m).padStart(2,'0')} ${ap}`;};
+const period=t=>{const h=+t.split(':')[0];return h<11?'MORNING':h<15?'NOON':h<19?'EVENING':'NIGHT';};
+const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
+
+function load(){
+  const raw=localStorage.getItem(KEY);
+  if(raw){state=JSON.parse(raw);} else {loadSample(true);}
+}
+
+function loadSample(silent){
+  state={meds:[
+    {id:1,name:'Lisinopril',dose:'10 mg',form:'1 tablet',times:['08:00'],note:'with food',supply:3,icon:'pill',color:'blue',start:'2026-05-01',end:''},
+    {id:2,name:'Vitamin D3',dose:'2000 IU',form:'1 capsule',times:['08:00'],note:'',supply:48,icon:'leaf',color:'green',start:'2026-05-01',end:''},
+    {id:3,name:'Metformin',dose:'500 mg',form:'1 tablet',times:['12:30','22:00'],note:'with meals',supply:21,icon:'pill',color:'purple',start:'2026-06-10',end:''},
+    {id:4,name:'Atorvastatin',dose:'20 mg',form:'1 tablet',times:['18:00'],note:'evening',supply:9,icon:'heart',color:'orange',start:'2026-05-01',end:'2026-06-30'},
+  ],log:{},name:state.name||'Username'};
+  save();
+  if(!silent){renderAll();toast('Sample data loaded');}
+}
+
+/* ---------- doses for a date ---------- */
+const activeOn=(m,dateKey)=>(!m.start||dateKey>=m.start)&&(!m.end||dateKey<=m.end);
+const fmtDate=d=>new Date(d+'T00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+const dateRangeLabel=m=>{
+  if(!m.start&&!m.end)return'Ongoing';
+  if(m.start&&!m.end)return`From ${fmtDate(m.start)}`;
+  if(!m.start&&m.end)return`Until ${fmtDate(m.end)}`;
+  return `${fmtDate(m.start)} – ${fmtDate(m.end)}`;
+};
+function dosesFor(dateKey){
+  const list=[];
+  state.meds.filter(m=>activeOn(m,dateKey)).forEach(m=>m.times.forEach(t=>{
+    const k=`${m.id}-${t}`;
+    const rec=(state.log[dateKey]||{})[k];
+    list.push({med:m,time:t,key:k,status:logStatus(rec),at:logTime(rec)});
+  }));
+  return list.sort((a,b)=>a.time.localeCompare(b.time));
+}
+// log values may be a plain string (legacy) or {s:'taken',at:'HH:MM'}
+const logStatus=v=>v&&typeof v==='object'?v.s:(v||null);
+const logTime=v=>v&&typeof v==='object'?v.at:null;
+const nowHHMM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
+
+function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes();}
+function tMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+
+function statusOf(d,dateKey){
+  if(d.status==='taken')return'taken';
+  if(d.status==='skipped')return'skip';
+  const tk=todayKey();dateKey=dateKey||tk;
+  if(dateKey<tk)return'miss';            // past day, never logged
+  if(dateKey>tk)return'due';             // future day → upcoming
+  return tMin(d.time)<nowMin()-30?'miss':'due';
+}
+
+/* ---------- actions ---------- */
+function setStatus(medId,time,status,dateKey){
+  const dk=dateKey||todayKey();
+  state.log[dk]=state.log[dk]||{};
+  const k=`${medId}-${time}`;
+  if(logStatus(state.log[dk][k])===status){delete state.log[dk][k];}
+  else{state.log[dk][k]={s:status,at:nowHHMM()}; if(status==='taken'){const m=state.meds.find(x=>x.id===medId); if(m&&m.supply>0)m.supply--;}}
+  save();renderAll();
+}
+
+/* ---------- rendering ---------- */
+function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory();renderReports();updateCounts();updateBackupInfo();}
+
+function updateBackupInfo(){
+  const meds=state.meds.length;
+  const records=Object.values(state.log).reduce((n,day)=>n+Object.keys(day).length,0);
+  document.getElementById('bk-meds').textContent=`${meds} medication${meds!==1?'s':''}`;
+  document.getElementById('bk-log').textContent=`${records} intake record${records!==1?'s':''}`;
+  document.getElementById('bk-name').textContent=`name (${state.name||'unset'})`;
+}
+
+function updateCounts(){
+  const pend=dosesFor(todayKey()).filter(d=>statusOf(d)==='due').length;
+  document.getElementById('nav-today').textContent=pend;
+  document.getElementById('nav-meds').textContent=state.meds.length;
+}
+
+function doseRow(d,withSkip,dateKey){
+  const dk=dateKey||todayKey();
+  const st=statusOf(d,dk);
+  const future=dk>todayKey();
+  const tagTxt={taken:'✓ Taken'+(d.at?' '+fmtTime(d.at):''),skip:'Skipped'+(d.at?' '+fmtTime(d.at):''),miss:'Missed',due:future||tMin(d.time)>nowMin()?'Upcoming':'Due now'}[st];
+  const done=(st==='taken'||st==='skip')?'done':'';
+  return `<div class="dose ${done}">
+    <div class="time">${fmtTime(d.time)}<small>${period(d.time)}</small></div>
+    <div class="pill ${d.med.color}">${iconSvg(d.med.icon,d.med.color)}</div>
+    <div class="info"><b>${d.med.name}</b><span>${d.med.dose} · ${d.med.form}${d.med.note?' · '+d.med.note:''}</span></div>
+    <span class="tag ${st}">${tagTxt}</span>
+    ${st!=='taken'?`<button class="take-btn" title="Mark taken" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">✓</button>`:`<button class="take-btn" title="Undo" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">↺</button>`}
+    ${withSkip&&st!=='skip'&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">✕</button>`:''}
+  </div>`;
+}
+
+function renderToday(){
+  const d=new Date();
+  const hr=d.getHours();
+  const greet=hr<12?'Good morning':hr<18?'Good afternoon':'Good evening';
+  const first=(state.name||'there').trim().split(' ')[0];
+  document.getElementById('greeting').textContent=`${greet}, ${first} 👋`;
+  document.getElementById('profile-name').textContent=state.name||'Add your name';
+  document.getElementById('avatar').textContent=(state.name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
+  const doses=dosesFor(todayKey());
+  const pend=doses.filter(x=>statusOf(x)==='due').length;
+  document.getElementById('subtitle').innerHTML=`${d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})} — <b style="color:var(--warn)">${pend} dose${pend!==1?'s':''}</b> still to take`;
+
+  // adherence
+  const acted=doses.filter(x=>x.status==='taken').length;
+  const due=doses.filter(x=>statusOf(x)!=='due'||x.status).length;
+  const total=doses.length||1;
+  const pct=Math.round(acted/total*100);
+  const ring=document.getElementById('ring');
+  ring.dataset.p=pct;
+  ring.style.background=`conic-gradient(var(--good) ${pct}%, rgba(255,255,255,.1) 0)`;
+  document.getElementById('adh-num').textContent=pct+'%';
+  document.getElementById('adh-sub').textContent=`${acted} of ${total} doses taken`;
+  document.getElementById('streak').textContent=`${computeStreak()} 🔥`;
+
+  // next dose
+  const upcoming=doses.filter(x=>statusOf(x)==='due'&&tMin(x.time)>=nowMin()).sort((a,b)=>tMin(a.time)-tMin(b.time))[0];
+  if(upcoming){
+    const diff=tMin(upcoming.time)-nowMin();
+    document.getElementById('next-time').textContent=fmtTime(upcoming.time);
+    document.getElementById('next-sub').textContent=`${upcoming.med.name} · in ${Math.floor(diff/60)?Math.floor(diff/60)+'h ':''}${diff%60}min`;
+  }else{document.getElementById('next-time').textContent='✓';document.getElementById('next-sub').textContent='All done for now';}
+
+  // refills
+  const low=state.meds.filter(m=>m.supply<=7);
+  document.getElementById('refill-num').textContent=low.length;
+  document.getElementById('refill-sub').textContent=low.length?`${low[0].name} runs low soon`:'Stock looks good';
+
+  document.getElementById('today-list').innerHTML=doses.length?doses.map(x=>doseRow(x,false)).join(''):'<div class="empty">No medications yet. Add one to get started.</div>';
+
+  // week chart
+  renderWeek('week-chart',100);
+  // supply
+  document.getElementById('supply-list').innerHTML=state.meds.map(m=>{
+    const days=m.supply; const pctw=Math.min(100,days/30*100);
+    const col=days<=7?'var(--danger)':days<=14?'var(--warn)':'var(--good)';
+    const dot=COLORS[m.color]||'var(--accent)';
+    return `<div class="medrow"><span class="dot" style="background:${dot}"></span> ${m.name}
+      <span class="supply">${days} left</span><div class="supply-bar"><i style="width:${pctw}%;background:${col}"></i></div></div>`;
+  }).join('')||'<div class="empty">—</div>';
+}
+
+function renderWeek(id,maxH){
+  const el=document.getElementById(id);if(!el)return;
+  const days=['M','T','W','T','F','S','S'];
+  const data=last7Adherence();
+  el.innerHTML=data.map((v,i)=>`<div class="bar"><div class="col" style="height:${Math.max(3,v)}%;${i===6?'opacity:.55':''}"></div><small>${days[i]}</small></div>`).join('');
+}
+
+function lastNData(n){
+  const out=[];
+  for(let i=n-1;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dk=d.toISOString().slice(0,10);
+    const doses=dosesFor(dk);
+    const taken=doses.filter(x=>x.status==='taken').length;
+    out.push({dk,d,count:doses.length,pct:doses.length?Math.round(taken/doses.length*100):0});
+  }
+  return out;
+}
+const last7Adherence=()=>lastNData(7).map(x=>x.pct);
+
+/* ---------- report aggregations ---------- */
+function reportStats(days){
+  let taken=0,skipped=0,missed=0,scheduled=0;const today=todayKey();
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+    dosesFor(dk).forEach(x=>{scheduled++;
+      if(x.status==='taken')taken++;
+      else if(x.status==='skipped')skipped++;
+      else if(dk<today||tMin(x.time)<nowMin())missed++;});}
+  return {taken,skipped,missed,scheduled,adh:scheduled?Math.round(taken/scheduled*100):0};
+}
+function perMedAdherence(days){
+  const map={};
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+    dosesFor(dk).forEach(x=>{const id=x.med.id;map[id]=map[id]||{med:x.med,taken:0,sched:0};map[id].sched++;if(x.status==='taken')map[id].taken++;});}
+  return Object.values(map).sort((a,b)=>(b.taken/b.sched)-(a.taken/a.sched));
+}
+function byPeriodTaken(days){
+  const p={MORNING:0,NOON:0,EVENING:0,NIGHT:0};
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+    dosesFor(dk).forEach(x=>{if(x.status==='taken')p[period(x.time)]++;});}
+  return p;
+}
+function bestStreak(days){
+  let best=0,cur=0;
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+    const doses=dosesFor(dk);if(!doses.length){cur=0;continue;}
+    const taken=doses.filter(x=>x.status==='taken').length;
+    if(taken/doses.length>=0.8){cur++;best=Math.max(best,cur);}else cur=0;}
+  return best;
+}
+
+function computeStreak(){
+  let s=0;
+  for(let i=0;i<60;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dk=d.toISOString().slice(0,10);
+    const doses=dosesFor(dk);if(!doses.length)break;
+    const taken=doses.filter(x=>x.status==='taken').length;
+    if(i===0){ if(taken>0)s++; else continue; }
+    else { if(taken/doses.length>=0.8)s++; else break; }
+  }
+  return s;
+}
+
+let scheduleDate=null; // null until first render → defaults to today
+function setScheduleDate(dk){scheduleDate=dk;renderSchedule();}
+function shiftDate(days){
+  const d=new Date((scheduleDate||todayKey())+'T00:00');d.setDate(d.getDate()+days);
+  setScheduleDate(d.toISOString().slice(0,10));
+}
+function renderSchedule(){
+  const dk=scheduleDate||todayKey();
+  const inp=document.getElementById('schedule-date');if(inp)inp.value=dk;
+  const doses=dosesFor(dk);
+  const taken=doses.filter(x=>x.status==='taken').length;
+  const skipped=doses.filter(x=>x.status==='skipped').length;
+  const tk=todayKey();
+  const rel=dk===tk?'Today':dk===new Date(Date.now()-864e5).toISOString().slice(0,10)?'Yesterday'
+    :dk===new Date(Date.now()+864e5).toISOString().slice(0,10)?'Tomorrow'
+    :new Date(dk+'T00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
+  document.getElementById('schedule-summary').innerHTML=doses.length
+    ?`<b style="color:var(--text)">${rel}</b> — ${taken}/${doses.length} taken${skipped?`, ${skipped} skipped`:''}`
+    :`<b style="color:var(--text)">${rel}</b>`;
+  document.getElementById('schedule-list').innerHTML=doses.length
+    ?doses.map(x=>doseRow(x,true,dk)).join('')
+    :'<div class="empty">No doses scheduled for this day.</div>';
+}
+
+function renderMeds(){
+  document.getElementById('meds-count').textContent=`${state.meds.length} medication${state.meds.length!==1?'s':''} tracked`;
+  const list=state.meds;
+  document.getElementById('meds-grid').innerHTML=list.map(m=>{
+    const col=m.supply<=7?'var(--danger)':m.supply<=14?'var(--warn)':'var(--good)';
+    return `<div class="card medcard">
+      <div class="pill ${m.color}" style="width:48px;height:48px">${iconSvg(m.icon,m.color,26)}</div>
+      <div class="info"><h3>${m.name}</h3><p>${m.dose} · ${m.form}${m.note?' · '+m.note:''}</p>
+        <div class="chips">${m.times.map(t=>`<span class="chip">🕑 ${fmtTime(t)}</span>`).join('')}
+          <span class="chip" style="color:${col}">📦 ${m.supply} left</span>
+          <span class="chip">📅 ${dateRangeLabel(m)}</span></div>
+        <div class="acts">
+          <button class="btn sm" onclick="openMedModal(${m.id})">Edit</button>
+          <button class="btn sm danger" onclick="deleteMed(${m.id})">Delete</button>
+        </div>
+      </div></div>`;
+  }).join('')||'<div class="empty" style="grid-column:1/-1">No medications yet. Add one to get started.</div>';
+}
+
+function renderHistory(){
+  const rows=[];
+  Object.keys(state.log).sort().reverse().forEach(dk=>{
+    Object.keys(state.log[dk]).forEach(k=>{
+      const [mid,time]=k.split(/-(?=\d{2}:\d{2}$)/);
+      const m=state.meds.find(x=>x.id==mid);if(!m)return;
+      const rec=state.log[dk][k];
+      rows.push({dk,time,m,status:logStatus(rec),at:logTime(rec)});
+    });
+  });
+  rows.sort((a,b)=>(b.dk+b.time).localeCompare(a.dk+a.time));
+  const body=document.getElementById('history-body');
+  document.getElementById('history-empty').style.display=rows.length?'none':'block';
+  body.innerHTML=rows.map(r=>{
+    const tag=r.status==='taken'?'<span class="tag taken">✓ Taken</span>':'<span class="tag skip">Skipped</span>';
+    const dd=new Date(r.dk+'T00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    const when=r.at?`${dd} · ${fmtTime(r.at)}<small style="color:var(--text-dim);display:block;font-size:10.5px">sched. ${fmtTime(r.time)}</small>`:`${dd} · ${fmtTime(r.time)}`;
+    return `<tr><td>${when}</td><td><b style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${iconSvg(r.m.icon,r.m.color,16)} ${r.m.name}</b></td><td style="color:var(--text-dim)">${r.m.dose}</td><td>${tag}</td></tr>`;
+  }).join('');
+}
+
+let reportRange=7;
+function setRange(n){
+  reportRange=n;
+  document.querySelectorAll('#range-seg .seg-btn').forEach(b=>b.classList.toggle('active',+b.dataset.r===n));
+  renderReports();
+}
+function renderReports(){
+  const n=reportRange;
+  const s=reportStats(n);
+  document.getElementById('r-sub').textContent=`Your adherence insights · last ${n} days`;
+  // top stats
+  document.getElementById('r-adh').textContent=s.adh+'%';
+  const ring=document.getElementById('r-ring');ring.dataset.p=s.adh;
+  ring.style.background=`conic-gradient(var(--good) ${s.adh}%, rgba(255,255,255,.1) 0)`;
+  document.getElementById('r-taken').textContent=s.taken;
+  document.getElementById('r-sched').textContent=s.scheduled;
+  document.getElementById('r-missed').textContent=s.missed;
+  document.getElementById('r-skipped').textContent=s.skipped;
+  document.getElementById('r-streak').textContent=bestStreak(n)+' 🔥';
+  document.getElementById('r-meds').textContent=state.meds.length;
+  document.getElementById('r-perday').textContent=(s.scheduled/n).toFixed(1);
+
+  renderTrend('report-chart',n);
+
+  // status donut
+  const total=s.taken+s.missed+s.skipped||1;
+  const tP=s.taken/total*100, sP=s.skipped/total*100;
+  const donut=document.getElementById('r-donut');
+  donut.dataset.c=s.adh+'%';
+  donut.style.background=`conic-gradient(var(--good) 0 ${tP}%, var(--warn) ${tP}% ${tP+sP}%, var(--danger) ${tP+sP}% 100%)`;
+  document.getElementById('r-legend').innerHTML=[
+    ['var(--good)','Taken',s.taken],['var(--warn)','Skipped',s.skipped],['var(--danger)','Missed',s.missed]
+  ].map(([c,l,v])=>`<div class="li"><span class="sw" style="background:${c}"></span>${l}<b>${v}</b></div>`).join('');
+
+  // per-medication adherence
+  const pm=perMedAdherence(n);
+  document.getElementById('r-permed').innerHTML=pm.length?pm.map(x=>{
+    const pct=Math.round(x.taken/x.sched*100);
+    const col=pct>=80?'var(--good)':pct>=50?'var(--warn)':'var(--danger)';
+    return `<div class="hrow"><div class="top">${iconSvg(x.med.icon,x.med.color,15)} ${x.med.name}<b>${pct}% · ${x.taken}/${x.sched}</b></div>
+      <div class="htrack"><i style="width:${pct}%;background:${col}"></i></div></div>`;
+  }).join(''):'<div class="empty">No data for this range.</div>';
+
+  // doses by time of day
+  const bp=byPeriodTaken(n);const mx=Math.max(1,...Object.values(bp));
+  const picon={MORNING:'🌅',NOON:'☀️',EVENING:'🌆',NIGHT:'🌙'};
+  document.getElementById('r-period').innerHTML=Object.keys(bp).map(p=>
+    `<div class="hrow"><div class="top">${picon[p]} ${p[0]+p.slice(1).toLowerCase()}<b>${bp[p]} taken</b></div>
+      <div class="htrack"><i style="width:${bp[p]/mx*100}%;background:var(--accent)"></i></div></div>`).join('');
+}
+function renderTrend(id,n){
+  const el=document.getElementById(id);if(!el)return;
+  const data=lastNData(n);
+  el.innerHTML=data.map((x,i)=>{
+    const lbl=n<=7?['M','T','W','T','F','S','S'][(x.d.getDay()+6)%7]
+      :(i%(n<=14?2:5)===0||i===n-1)?String(x.d.getDate()):'';
+    const last=i===n-1;
+    return `<div class="bar" title="${x.dk}: ${x.pct}%"><div class="col" style="height:${Math.max(3,x.pct)}%;${last?'opacity:.6':''}"></div><small>${lbl}</small></div>`;
+  }).join('');
+}
+
+/* ---------- modal ---------- */
+function openMedModal(id){
+  document.getElementById('overlay').classList.add('show');
+  if(id){
+    const m=state.meds.find(x=>x.id===id);
+    document.getElementById('modal-title').textContent='Edit medication';
+    document.getElementById('m-id').value=m.id;
+    document.getElementById('m-name').value=m.name;
+    document.getElementById('m-dose').value=m.dose;
+    document.getElementById('m-form').value=m.form;
+    document.getElementById('m-times').value=m.times.join(', ');
+    document.getElementById('m-note').value=m.note;
+    document.getElementById('m-supply').value=m.supply;
+    document.getElementById('m-start').value=m.start||'';
+    document.getElementById('m-end').value=m.end||'';
+    pickIcon(iconKey(m.icon),m.color);
+  }else{
+    document.getElementById('modal-title').textContent='Add medication';
+    ['m-id','m-name','m-dose','m-form','m-times','m-note','m-supply','m-end'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('m-start').value=todayKey(); // default new meds to start today
+    pickIcon('pill','blue');
+  }
+}
+function closeModal(){document.getElementById('overlay').classList.remove('show');}
+function renderPickers(){
+  document.getElementById('icon-pick').innerHTML=Object.keys(ICONS).map(k=>
+    `<div class="opt ${k===selIcon?'sel':''}" data-icon="${k}" onclick="pickIcon('${k}',selColor)">${iconSvg(k,selColor,20)}</div>`).join('');
+  document.getElementById('color-pick').innerHTML=Object.keys(COLORS).map(c=>
+    `<div class="opt ${c===selColor?'sel':''}" data-color="${c}" onclick="pickIcon(selIcon,'${c}')" style="background:${COLORS[c]}33"></div>`).join('');
+}
+function pickIcon(icon,color){selIcon=icon;selColor=color;renderPickers();}
+
+function saveMed(){
+  const name=document.getElementById('m-name').value.trim();
+  if(!name){toast('Name is required');return;}
+  const times=document.getElementById('m-times').value.split(',').map(t=>t.trim()).filter(Boolean)
+    .map(t=>/^\d{1,2}:\d{2}$/.test(t)?t.padStart(5,'0'):null).filter(Boolean);
+  if(!times.length){toast('Add at least one valid time (HH:MM)');return;}
+  const start=document.getElementById('m-start').value;
+  const end=document.getElementById('m-end').value;
+  if(start&&end&&end<start){toast('End date can’t be before start date');return;}
+  const id=document.getElementById('m-id').value;
+  const obj={
+    name,dose:document.getElementById('m-dose').value.trim()||'—',
+    form:document.getElementById('m-form').value.trim()||'1 dose',
+    times,note:document.getElementById('m-note').value.trim(),
+    supply:parseInt(document.getElementById('m-supply').value)||0,
+    start:start||'',end:end||'',
+    icon:selIcon,color:selColor
+  };
+  if(id){Object.assign(state.meds.find(x=>x.id==id),obj);toast('Medication updated');}
+  else{obj.id=Date.now();state.meds.push(obj);toast('Medication added');}
+  save();closeModal();renderAll();
+}
+function deleteMed(id){
+  if(!confirm('Delete this medication?'))return;
+  state.meds=state.meds.filter(m=>m.id!==id);save();renderAll();toast('Medication deleted');
+}
+
+/* ---------- nav ---------- */
+function go(page){
+  document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page===page));
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));
+}
+document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>go(n.dataset.page));
+
+/* ---------- misc ---------- */
+function editName(){
+  const i=document.getElementById('name-input');
+  i.value=state.name||'';
+  document.getElementById('name-overlay').classList.add('show');
+  setTimeout(()=>i.focus(),50);
+}
+function closeNameModal(){document.getElementById('name-overlay').classList.remove('show');}
+function saveName(){
+  const n=document.getElementById('name-input').value.trim();
+  state.name=n||'Guest';save();renderAll();closeNameModal();toast('Name updated');
+}
+document.getElementById('name-overlay').onclick=e=>{if(e.target.id==='name-overlay')closeNameModal();};
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.className='toast good show';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function clearHistory(){if(confirm('Clear all intake history?')){state.log={};save();renderAll();toast('History cleared');}}
+function resetAll(){
+  if(!confirm('Delete ALL data? This removes every medication and intake record and cannot be undone.'))return;
+  localStorage.removeItem(KEY);
+  state={meds:[],log:{},name:'Username'};
+  save();renderAll();go('today');toast('All data deleted');
+}
+function exportData(){const payload={app:'MedsADay',version:1,exportedAt:new Date().toISOString(),data:state};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`medsaday-backup-${todayKey()}.json`;a.click();URL.revokeObjectURL(a.href);toast('Backup saved');}
+function restoreData(e){
+  const file=e.target.files[0];e.target.value='';if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const parsed=JSON.parse(r.result);
+      const d=parsed&&parsed.data?parsed.data:parsed; // accept wrapped or raw
+      if(!d||!Array.isArray(d.meds))throw new Error('bad');
+      if(!confirm('Restore this backup? It will replace all current medications and history.'))return;
+      state={meds:d.meds,log:d.log||{},name:d.name||state.name||'Username'};
+      save();renderAll();go('today');toast('Backup restored');
+    }catch(err){toast('⚠ Invalid backup file');}
+  };
+  r.readAsText(file);
+}
+document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
+
+const CHANGELOG=[
+  {ver:'Alpha 0.1.0',date:'June 2026',items:[
+    'Initial release — Today, Schedule, Medications, History & Reports',
+    'Add/edit meds with custom icons, colors, times, supply & start/end dates',
+    'Mark doses taken or skipped with timestamps; date-aware schedule',
+    'Reports: range toggle, adherence trend, status donut, per-med & time-of-day charts',
+    'Backup & restore to a local JSON file; editable display name',
+    'Fluent acrylic UI, fullscreen layout — single self-contained HTML file'
+  ]}
+];
+function renderChangelog(){
+  document.getElementById('changelog').innerHTML=CHANGELOG.map(e=>
+    `<div class="cl-entry"><div class="cl-head"><span class="cl-ver">${e.ver}</span><span class="cl-date">${e.date}</span></div>
+      <ul class="cl-list">${e.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+}
+
+load();renderAll();renderChangelog();
+setInterval(renderAll,60000); // refresh statuses each minute
+</script>
+</body>
+</html>
