@@ -190,7 +190,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.2.1</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.2.2</span></div>
     <div class="spacer"></div>
   </div>
 
@@ -425,7 +425,9 @@ const ICON_MIGRATE={'💊':'pill','🔵':'pill','🟢':'leaf','🟠':'cross','�
 const iconKey=v=>ICONS[v]?v:(ICON_MIGRATE[v]||'pill');
 const iconSvg=(key,color,size)=>`<svg viewBox="0 0 24 24" width="${size||22}" height="${size||22}" fill="none" stroke="${COLORS[color]||COLORS.blue}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[iconKey(key)]}</svg>`;
 
-const todayKey=()=> new Date().toISOString().slice(0,10);
+// Local-timezone date key (YYYY-MM-DD) — uses the device's own timezone, not UTC
+const dKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const todayKey=()=> dKey(new Date());
 const fmtTime=t=>{const[h,m]=t.split(':').map(Number);const ap=h<12?'AM':'PM';const hh=((h+11)%12)+1;return `${hh}:${String(m).padStart(2,'0')} ${ap}`;};
 const period=t=>{const h=+t.split(':')[0];return h<11?'MORNING':h<15?'NOON':h<19?'EVENING':'NIGHT';};
 const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
@@ -599,7 +601,7 @@ function lastNData(n){
   const out=[];
   for(let i=n-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
-    const dk=d.toISOString().slice(0,10);
+    const dk=dKey(d);
     const doses=dosesFor(dk);
     const taken=doses.filter(x=>x.status==='taken').length;
     out.push({dk,d,count:doses.length,pct:doses.length?Math.round(taken/doses.length*100):0});
@@ -611,7 +613,7 @@ const last7Adherence=()=>lastNData(7).map(x=>x.pct);
 /* ---------- report aggregations ---------- */
 function reportStats(days){
   let taken=0,skipped=0,missed=0,scheduled=0;const today=todayKey();
-  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
     dosesFor(dk).forEach(x=>{scheduled++;
       if(x.status==='taken')taken++;
       else if(x.status==='skipped')skipped++;
@@ -620,19 +622,19 @@ function reportStats(days){
 }
 function perMedAdherence(days){
   const map={};
-  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
     dosesFor(dk).forEach(x=>{const id=x.med.id;map[id]=map[id]||{med:x.med,taken:0,sched:0};map[id].sched++;if(x.status==='taken')map[id].taken++;});}
   return Object.values(map).sort((a,b)=>(b.taken/b.sched)-(a.taken/a.sched));
 }
 function byPeriodTaken(days){
   const p={MORNING:0,NOON:0,EVENING:0,NIGHT:0};
-  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
     dosesFor(dk).forEach(x=>{if(x.status==='taken')p[period(x.time)]++;});}
   return p;
 }
 function bestStreak(days){
   let best=0,cur=0;
-  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=d.toISOString().slice(0,10);
+  for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
     const doses=dosesFor(dk);if(!doses.length){cur=0;continue;}
     const taken=doses.filter(x=>x.status==='taken').length;
     if(taken/doses.length>=0.8){cur++;best=Math.max(best,cur);}else cur=0;}
@@ -643,7 +645,7 @@ function computeStreak(){
   let s=0;
   for(let i=0;i<60;i++){
     const d=new Date();d.setDate(d.getDate()-i);
-    const dk=d.toISOString().slice(0,10);
+    const dk=dKey(d);
     const doses=dosesFor(dk);if(!doses.length)break;
     const taken=doses.filter(x=>x.status==='taken').length;
     if(i===0){ if(taken>0)s++; else continue; }
@@ -656,7 +658,7 @@ let scheduleDate=null; // null until first render → defaults to today
 function setScheduleDate(dk){scheduleDate=dk;renderSchedule();}
 function shiftDate(days){
   const d=new Date((scheduleDate||todayKey())+'T00:00');d.setDate(d.getDate()+days);
-  setScheduleDate(d.toISOString().slice(0,10));
+  setScheduleDate(dKey(d));
 }
 function renderSchedule(){
   const dk=scheduleDate||todayKey();
@@ -665,8 +667,8 @@ function renderSchedule(){
   const taken=doses.filter(x=>x.status==='taken').length;
   const skipped=doses.filter(x=>x.status==='skipped').length;
   const tk=todayKey();
-  const rel=dk===tk?'Today':dk===new Date(Date.now()-864e5).toISOString().slice(0,10)?'Yesterday'
-    :dk===new Date(Date.now()+864e5).toISOString().slice(0,10)?'Tomorrow'
+  const rel=dk===tk?'Today':dk===dKey(new Date(Date.now()-864e5))?'Yesterday'
+    :dk===dKey(new Date(Date.now()+864e5))?'Tomorrow'
     :new Date(dk+'T00:00').toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   document.getElementById('schedule-summary').innerHTML=doses.length
     ?`<b style="color:var(--text)">${rel}</b> — ${taken}/${doses.length} taken${skipped?`, ${skipped} skipped`:''}`
@@ -887,6 +889,9 @@ function restoreData(e){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.2.2',date:'June 2026',items:[
+    'Dates now follow the device\'s local timezone (day no longer rolls over at UTC midnight)'
+  ]},
   {ver:'Alpha 0.2.1',date:'June 2026',items:[
     'Long-press the ✓ button to mark a dose taken without recording a time'
   ]},
