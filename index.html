@@ -185,24 +185,54 @@
   .page{display:none} .page.active{display:block}
   ::-webkit-scrollbar{width:10px}
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:10px;border:3px solid transparent;background-clip:padding-box}
+  .nav-short{display:none}
+  .tb-avatar{display:none;width:30px;height:30px;font-size:12px}
+  @media (max-width:640px){
+    body{padding:0}
+    .window{height:100vh;height:100dvh}
+    .tb-avatar{display:grid}
+    .body{grid-template-columns:1fr}
+    .content{padding:16px 14px calc(74px + env(safe-area-inset-bottom));overflow:auto}
+    /* sidebar becomes a bottom tab bar */
+    .sidebar{position:fixed;left:0;right:0;bottom:0;z-index:30;flex-direction:row;gap:2px;
+      padding:6px 4px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--stroke);
+      background:rgba(18,22,36,.92);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px)}
+    .sidebar .grow,.sidebar .profile{display:none}
+    .nav{flex:1;flex-direction:column;gap:3px;padding:6px 2px;font-size:9.5px;text-align:center;border-radius:9px}
+    .nav .ic{width:auto;font-size:18px}
+    .nav.active::before{display:none}
+    .nav .count{position:absolute;top:2px;right:50%;margin-right:-18px;margin-left:0;font-size:9px;padding:0 5px}
+    .nav-full{display:none} .nav-short{display:inline}
+    /* page layout stacks */
+    .pagehead{flex-direction:column;align-items:flex-start;gap:12px}
+    .pagehead h1{font-size:21px}
+    .pagehead .btn.primary{width:100%;justify-content:center}
+    .stats{grid-template-columns:1fr 1fr!important;gap:10px;margin-bottom:14px}
+    .grid2{grid-template-columns:1fr}
+    .donut-wrap{flex-direction:column;align-items:flex-start;gap:14px}
+    .modal{width:calc(100vw - 28px);max-height:86vh}
+    .row{grid-template-columns:1fr}
+    table{font-size:12px} th,td{padding:8px 6px}
+  }
 </style>
 </head>
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.2.2</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.3.0</span></div>
     <div class="spacer"></div>
+    <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
 
   <div class="body">
     <aside class="sidebar">
-      <div class="nav active" data-page="today"><span class="ic">🏠</span> Today <span class="count" id="nav-today">0</span></div>
-      <div class="nav" data-page="schedule"><span class="ic">📅</span> Schedule</div>
-      <div class="nav" data-page="meds"><span class="ic">💊</span> My Medications <span class="count" id="nav-meds">0</span></div>
-      <div class="nav" data-page="history"><span class="ic">🕑</span> History</div>
-      <div class="nav" data-page="reports"><span class="ic">📊</span> Reports</div>
+      <div class="nav active" data-page="today"><span class="ic">🏠</span> <span class="nav-lbl">Today</span> <span class="count" id="nav-today">0</span></div>
+      <div class="nav" data-page="schedule"><span class="ic">📅</span> <span class="nav-lbl">Schedule</span></div>
+      <div class="nav" data-page="meds"><span class="ic">💊</span> <span class="nav-lbl"><span class="nav-full">My Medications</span><span class="nav-short">Meds</span></span> <span class="count" id="nav-meds">0</span></div>
+      <div class="nav" data-page="history"><span class="ic">🕑</span> <span class="nav-lbl">History</span></div>
+      <div class="nav" data-page="reports"><span class="ic">📊</span> <span class="nav-lbl">Reports</span></div>
       <div class="grow"></div>
-      <div class="nav" data-page="settings"><span class="ic">⚙️</span> Settings</div>
+      <div class="nav" data-page="settings"><span class="ic">⚙️</span> <span class="nav-lbl">Settings</span></div>
       <div class="profile">
         <div class="avatar" id="avatar" title="Click to change name" onclick="editName()">AK</div>
         <div><b style="font-size:13px" id="profile-name">Username</b></div>
@@ -546,7 +576,8 @@ function renderToday(){
   const first=(state.name||'there').trim().split(' ')[0];
   document.getElementById('greeting').textContent=`${greet}, ${first} 👋`;
   document.getElementById('profile-name').textContent=state.name||'Add your name';
-  document.getElementById('avatar').textContent=(state.name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
+  const ini=(state.name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
+  document.querySelectorAll('.avatar').forEach(a=>a.textContent=ini);
   const doses=dosesFor(todayKey());
   const pend=doses.filter(x=>statusOf(x)==='due').length;
   document.getElementById('subtitle').innerHTML=`${d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})} — <b style="color:var(--warn)">${pend} dose${pend!==1?'s':''}</b> still to take`;
@@ -889,6 +920,9 @@ function restoreData(e){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.3.0',date:'June 2026',items:[
+    'Responsive phone layout — sidebar becomes a bottom tab bar and cards stack for small screens'
+  ]},
   {ver:'Alpha 0.2.2',date:'June 2026',items:[
     'Dates now follow the device\'s local timezone (day no longer rolls over at UTC midnight)'
   ]},
