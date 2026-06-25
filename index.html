@@ -207,8 +207,16 @@
     .pagehead{flex-direction:column;align-items:flex-start;gap:12px}
     .pagehead h1{font-size:21px}
     .pagehead .btn.primary{width:100%;justify-content:center}
-    .stats{grid-template-columns:1fr 1fr!important;gap:10px;margin-bottom:14px}
-    .grid2{grid-template-columns:1fr}
+    .stats{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:10px;margin-bottom:14px}
+    .grid2{grid-template-columns:minmax(0,1fr)}
+    .medgrid{grid-template-columns:minmax(0,1fr)}
+    .stats>*,.grid2>*,.medgrid>*{min-width:0}
+    .medcard .info{min-width:0}
+    .dose{gap:10px;flex-wrap:wrap}
+    .time{width:48px;font-size:13px}
+    .dose .info{flex:1 1 130px;min-width:120px}
+    .dose .tag{order:5}
+    .dose .take-btn,.dose .skip-btn{order:6}
     .donut-wrap{flex-direction:column;align-items:flex-start;gap:14px}
     .modal{width:calc(100vw - 28px);max-height:86vh}
     .row{grid-template-columns:1fr}
@@ -219,7 +227,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.3.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.4.0</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -353,6 +361,14 @@
       <section class="page" id="page-settings">
         <div class="pagehead"><div><h1>Settings</h1><p>App preferences and data</p></div></div>
         <div class="card" style="margin-bottom:14px">
+          <h2>Reminders <span id="rem-status" style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px"></span></h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-top:0">Get a phone notification when a dose is due. Works on Android when MedsADay is open or installed to your home screen. Add it via Chrome's menu → “Install app” for the best results. Reminders fire while the app is running — for guaranteed alarms when the app is fully closed, also set a native phone alarm.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn primary" id="rem-toggle" onclick="toggleReminders()">🔔 Enable reminders</button>
+            <button class="btn" onclick="testNotification()">Send test notification</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
           <h2>Backup &amp; restore</h2>
           <p style="color:var(--text-dim);font-size:13px;margin-top:0">Your backup includes <b id="bk-meds">0 medications</b>, <b id="bk-log">0 intake records</b> and your <b id="bk-name">display name</b>. Save it to a file, or restore it on this or another device — everything stays local, nothing leaves your device.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -425,7 +441,7 @@
 
 <script>
 const KEY='medsaday.v1';
-let state={meds:[],log:{},name:'Username'}; // log keyed by date -> {medId-time: 'taken'|'skipped'}
+let state={meds:[],log:{},name:'Username',reminders:false}; // log keyed by date -> {medId-time: 'taken'|'skipped'}
 let selIcon='pill', selColor='blue';
 
 const COLORS={blue:'#5b9dff',purple:'#7c6cff',green:'#3ecf8e',orange:'#ff8c3b',pink:'#ff6b81',teal:'#2dd4bf',red:'#ff5c5c',amber:'#f4c344'};
@@ -473,7 +489,7 @@ function loadSample(silent){
     {id:2,name:'Vitamin D3',dose:'2000 IU',form:'1 capsule',times:['08:00'],note:'',supply:48,icon:'leaf',color:'green',start:'2026-05-01',end:''},
     {id:3,name:'Metformin',dose:'500 mg',form:'1 tablet',times:['12:30','22:00'],note:'with meals',supply:21,icon:'pill',color:'purple',start:'2026-06-10',end:''},
     {id:4,name:'Atorvastatin',dose:'20 mg',form:'1 tablet',times:['18:00'],note:'evening',supply:9,icon:'heart',color:'orange',start:'2026-05-01',end:'2026-06-30'},
-  ],log:{},name:state.name||'Username'};
+  ],log:{},name:state.name||'Username',reminders:state.reminders||false};
   save();
   if(!silent){renderAll();toast('Sample data loaded');}
 }
@@ -537,7 +553,7 @@ function holdEnd(e,id,time,dk){
 function holdCancel(){if(_hold.t){clearTimeout(_hold.t);_hold.t=null;}}
 
 /* ---------- rendering ---------- */
-function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory();renderReports();updateCounts();updateBackupInfo();}
+function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory();renderReports();updateCounts();updateBackupInfo();updateReminderUI();scheduleReminders();}
 
 function updateBackupInfo(){
   const meds=state.meds.length;
@@ -895,7 +911,7 @@ function clearHistory(){if(confirm('Clear all intake history?')){state.log={};sa
 function resetAll(){
   if(!confirm('Delete ALL data? This removes every medication and intake record and cannot be undone.'))return;
   localStorage.removeItem(KEY);
-  state={meds:[],log:{},name:'Username'};
+  state={meds:[],log:{},name:'Username',reminders:state.reminders||false};
   save();renderAll();go('today');toast('All data deleted');
 }
 function exportData(){const payload={app:'MedsADay',version:1,exportedAt:new Date().toISOString(),data:state};
@@ -911,7 +927,7 @@ function restoreData(e){
       const d=parsed&&parsed.data?parsed.data:parsed; // accept wrapped or raw
       if(!d||!Array.isArray(d.meds))throw new Error('bad');
       if(!confirm('Restore this backup? It will replace all current medications and history.'))return;
-      state={meds:d.meds,log:d.log||{},name:d.name||state.name||'Username'};
+      state={meds:d.meds,log:d.log||{},name:d.name||state.name||'Username',reminders:d.reminders||state.reminders||false};
       save();renderAll();go('today');toast('Backup restored');
     }catch(err){toast('⚠ Invalid backup file');}
   };
@@ -920,6 +936,10 @@ function restoreData(e){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.4.0',date:'June 2026',items:[
+    'Optional dose reminders — Android notifications when a dose is due (while the app is open/installed)',
+    'Fixed phone layout overflow — cards, medication grid and dose rows no longer clip on narrow screens'
+  ]},
   {ver:'Alpha 0.3.0',date:'June 2026',items:[
     'Responsive phone layout — sidebar becomes a bottom tab bar and cards stack for small screens'
   ]},
@@ -947,6 +967,70 @@ function renderChangelog(){
   document.getElementById('changelog').innerHTML=CHANGELOG.map(e=>
     `<div class="cl-entry"><div class="cl-head"><span class="cl-ver">${e.ver}</span><span class="cl-date">${e.date}</span></div>
       <ul class="cl-list">${e.items.map(i=>`<li>${i}</li>`).join('')}</ul></div>`).join('');
+}
+
+/* ---------- reminders (local notifications) ---------- */
+const notifSupported=()=> 'Notification' in window && 'serviceWorker' in navigator && isSecureContext;
+let _remTimers=[];
+function clearReminders(){_remTimers.forEach(clearTimeout);_remTimers=[];}
+function fireNotif(title,body){
+  const opts={body,icon:'icon-192.png',badge:'icon-192.png',tag:title+'|'+body,renotify:true,vibrate:[120,60,120]};
+  if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){
+    navigator.serviceWorker.getRegistration().then(r=>{
+      if(r&&r.showNotification)r.showNotification(title,opts);
+      else try{new Notification(title,opts);}catch(e){}
+    }).catch(()=>{try{new Notification(title,opts);}catch(e){}});
+  }else{try{new Notification(title,opts);}catch(e){}}
+}
+function scheduleReminders(){
+  clearReminders();
+  if(!state.reminders||!('Notification'in window)||Notification.permission!=='granted')return;
+  const dk=todayKey();const now=Date.now();
+  dosesFor(dk).forEach(d=>{
+    if(statusOf(d,dk)!=='due')return;            // skip taken/skipped/already-missed
+    const [h,m]=d.time.split(':').map(Number);
+    const at=new Date();at.setHours(h,m,0,0);
+    const delay=at.getTime()-now;
+    if(delay>500 && delay<24*3600*1000){
+      _remTimers.push(setTimeout(()=>{
+        fireNotif('💊 Time for '+d.med.name, `${d.med.dose} · ${d.med.form}${d.med.note?' · '+d.med.note:''}`);
+      },delay));
+    }
+  });
+}
+async function toggleReminders(){
+  if(state.reminders){state.reminders=false;save();clearReminders();updateReminderUI();toast('Reminders off');return;}
+  if(!notifSupported()){toast('⚠ Notifications need HTTPS and a supported browser');return;}
+  let p=Notification.permission;
+  if(p!=='granted')p=await Notification.requestPermission();
+  if(p!=='granted'){toast('Notification permission was not granted');updateReminderUI();return;}
+  state.reminders=true;save();scheduleReminders();updateReminderUI();
+  fireNotif('Reminders on','You\'ll be notified when a dose is due.');
+  toast('Reminders enabled');
+}
+function testNotification(){
+  if(!notifSupported()){toast('⚠ Notifications need HTTPS and a supported browser');return;}
+  (Notification.permission==='granted'?Promise.resolve('granted'):Notification.requestPermission()).then(p=>{
+    if(p==='granted')fireNotif('💊 Test reminder','This is how a dose reminder will look.');
+    else toast('Notification permission was not granted');
+  });
+}
+function updateReminderUI(){
+  const btn=document.getElementById('rem-toggle'),st=document.getElementById('rem-status');if(!btn||!st)return;
+  const supported=notifSupported();
+  const perm=('Notification'in window)?Notification.permission:'unsupported';
+  if(!supported){btn.textContent='🔔 Not available here';btn.disabled=true;btn.classList.remove('primary');
+    st.textContent='unsupported';st.style.background='rgba(170,179,197,.18)';st.style.color='var(--text-dim)';return;}
+  btn.disabled=false;
+  if(state.reminders&&perm==='granted'){
+    btn.textContent='🔕 Turn off reminders';btn.classList.remove('primary');
+    st.textContent='On';st.style.background='rgba(62,207,142,.18)';st.style.color='var(--good)';
+  }else{
+    btn.textContent='🔔 Enable reminders';btn.classList.add('primary');
+    st.textContent=perm==='denied'?'Blocked in browser':'Off';
+    st.style.background=perm==='denied'?'rgba(255,107,129,.18)':'rgba(170,179,197,.18)';
+    st.style.color=perm==='denied'?'var(--danger)':'var(--text-dim)';
+  }
 }
 
 load();renderAll();renderChangelog();

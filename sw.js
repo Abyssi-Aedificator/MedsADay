@@ -1,9 +1,20 @@
 // MedsADay service worker — offline cache + install support
-const CACHE = 'medsaday-v1';
+const CACHE = 'medsaday-v2';
 const ASSETS = [
   '.', 'index.html', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'icon-maskable.png'
 ];
+
+// Tapping a dose reminder focuses the app (or opens it)
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+      for (const c of cs) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow('.');
+    })
+  );
+});
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
