@@ -227,7 +227,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.4.1</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.5.0</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -375,6 +375,24 @@
             <button class="btn" onclick="exportData()">⬇ Back up to file</button>
             <button class="btn" onclick="document.getElementById('restore-file').click()">⬆ Restore from file</button>
             <input type="file" id="restore-file" accept="application/json,.json" style="display:none" onchange="restoreData(event)">
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h2>Dropbox sync <span id="dbx-status" style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px"></span></h2>
+          <p style="color:var(--text-dim);font-size:13px;margin-top:0">Sync your backup file through your own Dropbox account so the same data is available on your PC and your Android phone. Your data goes straight from your browser to your Dropbox — never through any server of ours.</p>
+          <div id="dbx-setup" style="margin-bottom:10px">
+            <div class="field" style="margin-bottom:8px"><label>Dropbox App key <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:500">(get one free →)</a></label>
+              <input id="dbx-key" placeholder="e.g. abcd1234efgh567">
+            </div>
+            <button class="btn primary" onclick="dropboxConnect()">🔗 Connect to Dropbox</button>
+          </div>
+          <div id="dbx-connected" style="display:none">
+            <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px">Connected<span id="dbx-account"></span> · <span id="dbx-lastsync">never synced</span></p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn" onclick="dropboxUpload()">⬆ Upload to Dropbox</button>
+              <button class="btn" onclick="dropboxDownload()">⬇ Download from Dropbox</button>
+              <button class="btn danger" onclick="dropboxDisconnect()">Disconnect</button>
+            </div>
           </div>
         </div>
         <div class="card" style="margin-bottom:14px">
@@ -927,24 +945,156 @@ function exportData(){const payload={app:'MedsADay',version:1,exportedAt:new Dat
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`medsaday-backup-${todayKey()}.json`;a.click();URL.revokeObjectURL(a.href);toast('Backup saved');}
+function parseBackupJSON(text){
+  const parsed=JSON.parse(text);
+  const d=parsed&&parsed.data?parsed.data:parsed; // accept wrapped or raw
+  if(!d||!Array.isArray(d.meds))throw new Error('bad backup format');
+  return d;
+}
+function applyRestoredData(d){
+  state={meds:d.meds,log:d.log||{},name:d.name||state.name||'Username',reminders:d.reminders||state.reminders||false};
+  save();renderAll();go('today');
+}
 function restoreData(e){
   const file=e.target.files[0];e.target.value='';if(!file)return;
   const r=new FileReader();
   r.onload=()=>{
     try{
-      const parsed=JSON.parse(r.result);
-      const d=parsed&&parsed.data?parsed.data:parsed; // accept wrapped or raw
-      if(!d||!Array.isArray(d.meds))throw new Error('bad');
+      const d=parseBackupJSON(r.result);
       if(!confirm('Restore this backup? It will replace all current medications and history.'))return;
-      state={meds:d.meds,log:d.log||{},name:d.name||state.name||'Username',reminders:d.reminders||state.reminders||false};
-      save();renderAll();go('today');toast('Backup restored');
+      applyRestoredData(d);toast('Backup restored');
     }catch(err){toast('⚠ Invalid backup file');}
   };
   r.readAsText(file);
 }
+
+/* ---------- Dropbox sync (client-side OAuth2 PKCE, no backend) ---------- */
+const DBX_KEY='medsaday.dropbox';
+let dbx=JSON.parse(localStorage.getItem(DBX_KEY)||'null')||{appKey:'',accessToken:'',refreshToken:'',expiresAt:0,account:'',lastSync:''};
+const dbxSave=()=>localStorage.setItem(DBX_KEY,JSON.stringify(dbx));
+const dbxRedirectUri=()=> location.origin+location.pathname;
+
+function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function randomString(len){const a=new Uint8Array(len);crypto.getRandomValues(a);return b64url(a).slice(0,len);}
+async function pkceChallenge(verifier){
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier));
+  return b64url(digest);
+}
+
+async function dropboxConnect(){
+  const key=document.getElementById('dbx-key').value.trim();
+  if(!key){toast('Enter your Dropbox App key first');return;}
+  if(!isSecureContext){toast('⚠ Dropbox sync needs HTTPS (or localhost)');return;}
+  dbx.appKey=key;dbxSave();
+  const verifier=randomString(64);
+  sessionStorage.setItem('medsaday.dbx.verifier',verifier);
+  const challenge=await pkceChallenge(verifier);
+  const url='https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams({
+    client_id:key,response_type:'code',code_challenge:challenge,code_challenge_method:'S256',
+    token_access_type:'offline',redirect_uri:dbxRedirectUri()
+  });
+  location.href=url;
+}
+
+async function dropboxHandleRedirect(){
+  const params=new URLSearchParams(location.search);
+  const code=params.get('code');
+  if(!code)return;
+  history.replaceState(null,'',location.pathname+location.hash); // strip ?code= from the URL
+  go('settings');
+  const verifier=sessionStorage.getItem('medsaday.dbx.verifier');
+  if(!verifier||!dbx.appKey)return;
+  try{
+    const res=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({code,grant_type:'authorization_code',client_id:dbx.appKey,
+        code_verifier:verifier,redirect_uri:dbxRedirectUri()})});
+    const j=await res.json();
+    if(!res.ok)throw new Error(j.error_description||j.error||'auth failed');
+    dbx.accessToken=j.access_token;dbx.refreshToken=j.refresh_token||dbx.refreshToken;
+    dbx.expiresAt=Date.now()+(j.expires_in||14400)*1000;dbxSave();
+    await dropboxFetchAccount();
+    toast('Dropbox connected');
+  }catch(err){toast('⚠ Dropbox connection failed: '+err.message);}
+  updateDropboxUI();
+}
+
+async function dropboxRefreshIfNeeded(){
+  if(dbx.accessToken&&Date.now()<dbx.expiresAt-30000)return true;
+  if(!dbx.refreshToken||!dbx.appKey)return !!dbx.accessToken;
+  const res=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({grant_type:'refresh_token',refresh_token:dbx.refreshToken,client_id:dbx.appKey})});
+  const j=await res.json();
+  if(!res.ok)return false;
+  dbx.accessToken=j.access_token;dbx.expiresAt=Date.now()+(j.expires_in||14400)*1000;dbxSave();
+  return true;
+}
+
+async function dropboxFetchAccount(){
+  try{
+    const res=await fetch('https://api.dropboxapi.com/2/users/get_current_account',{method:'POST',
+      headers:{'Authorization':'Bearer '+dbx.accessToken}});
+    if(res.ok){const j=await res.json();dbx.account=j.email||j.name?.display_name||'';dbxSave();}
+  }catch(e){}
+}
+
+async function dropboxUpload(){
+  if(!await dropboxRefreshIfNeeded()){toast('⚠ Dropbox session expired — reconnect');return;}
+  const payload={app:'MedsADay',version:1,exportedAt:new Date().toISOString(),data:state};
+  try{
+    const res=await fetch('https://content.dropboxapi.com/2/files/upload',{method:'POST',
+      headers:{'Authorization':'Bearer '+dbx.accessToken,'Content-Type':'application/octet-stream',
+        'Dropbox-API-Arg':JSON.stringify({path:'/medsaday-backup.json',mode:'overwrite',mute:true})},
+      body:JSON.stringify(payload,null,2)});
+    if(!res.ok)throw new Error('upload failed ('+res.status+')');
+    dbx.lastSync=new Date().toLocaleString();dbxSave();updateDropboxUI();
+    toast('Uploaded to Dropbox');
+  }catch(err){toast('⚠ '+err.message);}
+}
+
+async function dropboxDownload(){
+  if(!await dropboxRefreshIfNeeded()){toast('⚠ Dropbox session expired — reconnect');return;}
+  try{
+    const res=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',
+      headers:{'Authorization':'Bearer '+dbx.accessToken,
+        'Dropbox-API-Arg':JSON.stringify({path:'/medsaday-backup.json'})}});
+    if(res.status===409){toast('No backup found in Dropbox yet — upload one first');return;}
+    if(!res.ok)throw new Error('download failed ('+res.status+')');
+    const text=await res.text();
+    const d=parseBackupJSON(text);
+    if(!confirm('Restore from Dropbox? It will replace all current medications and history.'))return;
+    applyRestoredData(d);
+    dbx.lastSync=new Date().toLocaleString();dbxSave();updateDropboxUI();
+    toast('Restored from Dropbox');
+  }catch(err){toast('⚠ '+err.message);}
+}
+
+function dropboxDisconnect(){
+  if(!confirm('Disconnect Dropbox? You can reconnect any time with your App key.'))return;
+  dbx={appKey:dbx.appKey,accessToken:'',refreshToken:'',expiresAt:0,account:'',lastSync:''};dbxSave();
+  updateDropboxUI();toast('Dropbox disconnected');
+}
+
+function updateDropboxUI(){
+  const setup=document.getElementById('dbx-setup'),connected=document.getElementById('dbx-connected'),st=document.getElementById('dbx-status');
+  if(!setup)return;
+  document.getElementById('dbx-key').value=dbx.appKey||'';
+  const isConnected=!!dbx.accessToken;
+  setup.style.display=isConnected?'none':'block';
+  connected.style.display=isConnected?'block':'none';
+  document.getElementById('dbx-account').textContent=dbx.account?' as '+dbx.account:'';
+  document.getElementById('dbx-lastsync').textContent=dbx.lastSync?'last synced '+dbx.lastSync:'never synced';
+  st.textContent=isConnected?'Connected':'Not connected';
+  st.style.background=isConnected?'rgba(62,207,142,.18)':'rgba(170,179,197,.18)';
+  st.style.color=isConnected?'var(--good)':'var(--text-dim)';
+}
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.5.0',date:'June 2026',items:[
+    'Dropbox sync — connect your own Dropbox account to sync your backup between PC and Android'
+  ]},
   {ver:'Alpha 0.4.1',date:'June 2026',items:[
     'Reports no longer count upcoming (not-yet-due) doses against adherence'
   ]},
@@ -1046,6 +1196,7 @@ function updateReminderUI(){
 }
 
 load();renderAll();renderChangelog();
+updateDropboxUI();dropboxHandleRedirect();
 setInterval(renderAll,60000); // refresh statuses each minute
 
 // PWA: register service worker so the app is installable & works offline
