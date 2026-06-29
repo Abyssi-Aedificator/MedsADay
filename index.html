@@ -183,6 +183,7 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
   .toast.good{border-left:3px solid var(--good)}
   .page{display:none} .page.active{display:block}
+  .settings-tab{display:none} .settings-tab.active{display:block}
   ::-webkit-scrollbar{width:10px}
   ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:10px;border:3px solid transparent;background-clip:padding-box}
   .nav-short{display:none}
@@ -227,7 +228,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.6.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.6.1</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -360,6 +361,11 @@
       <!-- SETTINGS -->
       <section class="page" id="page-settings">
         <div class="pagehead"><div><h1>Settings</h1><p>App preferences and data</p></div></div>
+        <div class="seg" id="settings-seg" style="margin-bottom:16px">
+          <button class="seg-btn active" data-tab="general" onclick="setSettingsTab('general')">General</button>
+          <button class="seg-btn" data-tab="changelog" onclick="setSettingsTab('changelog')">Changelog</button>
+        </div>
+        <div class="settings-tab active" id="settings-tab-general">
         <div class="card" style="margin-bottom:14px">
           <h2>Reminders <span id="rem-status" style="font-size:11px;font-weight:500;padding:2px 9px;border-radius:20px"></span></h2>
           <p style="color:var(--text-dim);font-size:13px;margin-top:0">Get a phone notification when a dose is due. Works on Android when MedsADay is open or installed to your home screen. Add it via Chrome's menu → “Install app” for the best results. Reminders fire while the app is running — for guaranteed alarms when the app is fully closed, also set a native phone alarm.</p>
@@ -395,7 +401,7 @@
             </div>
           </div>
         </div>
-        <div class="card" style="margin-bottom:14px">
+        <div class="card">
           <h2>Data</h2>
           <p style="color:var(--text-dim);font-size:13px;margin-top:0">Reset the app or load demo content to explore the features.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -403,8 +409,11 @@
             <button class="btn danger" onclick="resetAll()">🗑 Reset everything</button>
           </div>
         </div>
+        </div>
+        <div class="settings-tab" id="settings-tab-changelog">
         <div class="card"><h2>Changelog</h2>
           <div class="changelog" id="changelog"></div>
+        </div>
         </div>
       </section>
     </main>
@@ -930,6 +939,10 @@ function go(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));
 }
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>go(n.dataset.page));
+function setSettingsTab(tab){
+  document.querySelectorAll('#settings-seg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.settings-tab').forEach(t=>t.classList.toggle('active',t.id==='settings-tab-'+tab));
+}
 
 /* ---------- misc ---------- */
 function editName(){
@@ -1134,6 +1147,9 @@ function updateDropboxUI(){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.6.1',date:'June 2026',items:[
+    'Settings page now has General and Changelog tabs'
+  ]},
   {ver:'Alpha 0.6.0',date:'June 2026',items:[
     'On launch, get prompted if a newer backup is waiting on Dropbox, with one tap to sync it in'
   ]},
