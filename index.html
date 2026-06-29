@@ -227,7 +227,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.4.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.4.1</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -649,7 +649,8 @@ function lastNData(n){
   for(let i=n-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const dk=dKey(d);
-    const doses=dosesFor(dk);
+    // exclude doses still upcoming (not yet due) — they haven't happened, so they shouldn't count against adherence
+    const doses=dosesFor(dk).filter(x=>statusOf(x,dk)!=='due');
     const taken=doses.filter(x=>x.status==='taken').length;
     out.push({dk,d,count:doses.length,pct:doses.length?Math.round(taken/doses.length*100):0});
   }
@@ -659,19 +660,26 @@ const last7Adherence=()=>lastNData(7).map(x=>x.pct);
 
 /* ---------- report aggregations ---------- */
 function reportStats(days){
-  let taken=0,skipped=0,missed=0,scheduled=0;const today=todayKey();
+  let taken=0,skipped=0,missed=0,scheduled=0;
   for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
-    dosesFor(dk).forEach(x=>{scheduled++;
-      if(x.status==='taken')taken++;
-      else if(x.status==='skipped')skipped++;
-      else if(dk<today||tMin(x.time)<nowMin())missed++;});}
+    dosesFor(dk).forEach(x=>{
+      const st=statusOf(x,dk);
+      if(st==='due')return; // not yet due — don't count against adherence
+      scheduled++;
+      if(st==='taken')taken++;
+      else if(st==='skip')skipped++;
+      else missed++;
+    });}
   return {taken,skipped,missed,scheduled,adh:scheduled?Math.round(taken/scheduled*100):0};
 }
 function perMedAdherence(days){
   const map={};
   for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
-    dosesFor(dk).forEach(x=>{const id=x.med.id;map[id]=map[id]||{med:x.med,taken:0,sched:0};map[id].sched++;if(x.status==='taken')map[id].taken++;});}
-  return Object.values(map).sort((a,b)=>(b.taken/b.sched)-(a.taken/a.sched));
+    dosesFor(dk).forEach(x=>{
+      if(statusOf(x,dk)==='due')return;
+      const id=x.med.id;map[id]=map[id]||{med:x.med,taken:0,sched:0};map[id].sched++;if(x.status==='taken')map[id].taken++;
+    });}
+  return Object.values(map).filter(m=>m.sched>0).sort((a,b)=>(b.taken/b.sched)-(a.taken/a.sched));
 }
 function byPeriodTaken(days){
   const p={MORNING:0,NOON:0,EVENING:0,NIGHT:0};
@@ -682,7 +690,8 @@ function byPeriodTaken(days){
 function bestStreak(days){
   let best=0,cur=0;
   for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
-    const doses=dosesFor(dk);if(!doses.length){cur=0;continue;}
+    const doses=dosesFor(dk).filter(x=>statusOf(x,dk)!=='due');
+    if(!doses.length){cur=0;continue;}
     const taken=doses.filter(x=>x.status==='taken').length;
     if(taken/doses.length>=0.8){cur++;best=Math.max(best,cur);}else cur=0;}
   return best;
@@ -936,6 +945,9 @@ function restoreData(e){
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
 
 const CHANGELOG=[
+  {ver:'Alpha 0.4.1',date:'June 2026',items:[
+    'Reports no longer count upcoming (not-yet-due) doses against adherence'
+  ]},
   {ver:'Alpha 0.4.0',date:'June 2026',items:[
     'Optional dose reminders — Android notifications when a dose is due (while the app is open/installed)',
     'Fixed phone layout overflow — cards, medication grid and dose rows no longer clip on narrow screens'
