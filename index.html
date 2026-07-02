@@ -97,6 +97,7 @@
   .dose .info b{font-size:13.5px} .dose .info span{display:block;color:var(--text-dim);font-size:11.5px;margin-top:2px}
   .tag{font-size:10.5px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}
   .tag.due{background:rgba(255,180,84,.18);color:var(--warn)}
+  .tag.urgent{background:rgba(255,107,129,.22);color:var(--danger)}
   .tag.taken{background:rgba(62,207,142,.18);color:var(--good)}
   .tag.miss{background:rgba(255,107,129,.18);color:var(--danger)}
   .tag.skip{background:rgba(170,179,197,.18);color:var(--text-dim)}
@@ -228,7 +229,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.6.1</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">Alpha 0.7.0</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -556,6 +557,9 @@ const logStatus=v=>v&&typeof v==='object'?v.s:(v||null);
 const logTime=v=>v&&typeof v==='object'?v.at:null;
 const nowHHMM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
 
+// How many days a med's supply lasts at its scheduled rate (doses/day)
+const daysOfSupply=m=>m.times.length?Math.floor(m.supply/m.times.length):m.supply;
+
 function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes();}
 function tMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
 
@@ -573,8 +577,12 @@ function setStatus(medId,time,status,dateKey,notime){
   const dk=dateKey||todayKey();
   state.log[dk]=state.log[dk]||{};
   const k=`${medId}-${time}`;
-  if(logStatus(state.log[dk][k])===status){delete state.log[dk][k];}
-  else{state.log[dk][k]=notime?{s:status}:{s:status,at:nowHHMM()}; if(status==='taken'){const m=state.meds.find(x=>x.id===medId); if(m&&m.supply>0)m.supply--;}}
+  const m=state.meds.find(x=>x.id===medId);
+  const wasTaken=logStatus(state.log[dk][k])==='taken';
+  if(logStatus(state.log[dk][k])===status){delete state.log[dk][k]; if(wasTaken&&m)m.supply++;} // undo taken → give the dose back
+  else{state.log[dk][k]=notime?{s:status}:{s:status,at:nowHHMM()};
+    if(status==='taken'&&m&&m.supply>0){m.supply--; if(m.supply===0)toast(`📦 That was the last ${m.name} — time to refill`);}
+    else if(wasTaken&&m)m.supply++;} // taken → skipped also restores the dose
   save();renderAll();
 }
 
@@ -604,7 +612,9 @@ function updateBackupInfo(){
 
 function updateCounts(){
   const pend=dosesFor(todayKey()).filter(d=>statusOf(d)==='due').length;
-  document.getElementById('nav-today').textContent=pend;
+  const badge=document.getElementById('nav-today');
+  badge.textContent=pend||'';
+  badge.style.display=pend?'':'none';
   document.getElementById('nav-meds').textContent=state.meds.length;
 }
 
@@ -612,15 +622,21 @@ function doseRow(d,withSkip,dateKey){
   const dk=dateKey||todayKey();
   const st=statusOf(d,dk);
   const future=dk>todayKey();
+  const isDueNow=st==='due'&&!future&&tMin(d.time)<=nowMin();
+  const tagClass=isDueNow?'urgent':st;
   const tagTxt={taken:'✓ Taken'+(d.at?' '+fmtTime(d.at):''),skip:'Skipped'+(d.at?' '+fmtTime(d.at):''),miss:'Missed',due:future||tMin(d.time)>nowMin()?'Upcoming':'Due now'}[st];
   const done=(st==='taken'||st==='skip')?'done':'';
   return `<div class="dose ${done}">
     <div class="time">${fmtTime(d.time)}<small>${period(d.time)}</small></div>
     <div class="pill ${d.med.color}">${iconSvg(d.med.icon,d.med.color)}</div>
     <div class="info"><b>${d.med.name}</b><span>${d.med.dose} · ${d.med.form}${d.med.note?' · '+d.med.note:''}</span></div>
-    <span class="tag ${st}">${tagTxt}</span>
-    ${st!=='taken'?`<button class="take-btn" title="Tap = taken now · Hold = taken (no time)" oncontextmenu="return false" onpointerdown="holdStart(event,${d.med.id},'${d.time}','${dk}')" onpointerup="holdEnd(event,${d.med.id},'${d.time}','${dk}')" onpointerleave="holdCancel()" onpointercancel="holdCancel()">✓</button>`:`<button class="take-btn" title="Undo" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">↺</button>`}
-    ${withSkip&&st!=='skip'&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">✕</button>`:''}
+    <span class="tag ${tagClass}">${tagTxt}</span>
+    ${st==='taken'
+      ?`<button class="take-btn" title="Undo taken" onclick="setStatus(${d.med.id},'${d.time}','taken','${dk}')">↺</button>`
+      :`<button class="take-btn" title="Tap = taken now · Hold = taken (no time)" oncontextmenu="return false" onpointerdown="holdStart(event,${d.med.id},'${d.time}','${dk}')" onpointerup="holdEnd(event,${d.med.id},'${d.time}','${dk}')" onpointerleave="holdCancel()" onpointercancel="holdCancel()">✓</button>`}
+    ${st==='skip'
+      ?`<button class="skip-btn" title="Undo skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">↺</button>`
+      :withSkip&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">✕</button>`:''}
   </div>`;
 }
 
@@ -635,19 +651,23 @@ function renderToday(){
   document.querySelectorAll('.avatar').forEach(a=>a.textContent=ini);
   const doses=dosesFor(todayKey());
   const pend=doses.filter(x=>statusOf(x)==='due').length;
-  document.getElementById('subtitle').innerHTML=`${d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})} — <b style="color:var(--warn)">${pend} dose${pend!==1?'s':''}</b> still to take`;
+  const dateStr=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('subtitle').innerHTML=pend===0&&doses.length>0
+    ?`${dateStr} — <b style="color:var(--good)">All caught up! 🎉</b>`
+    :`${dateStr} — <b style="color:var(--warn)">${pend} dose${pend!==1?'s':''}</b> still to take`;
 
   // adherence
   const acted=doses.filter(x=>x.status==='taken').length;
-  const due=doses.filter(x=>statusOf(x)!=='due'||x.status).length;
-  const total=doses.length||1;
-  const pct=Math.round(acted/total*100);
+  const countable=doses.filter(x=>statusOf(x)!=='due');
+  const pct=countable.length?Math.round(acted/countable.length*100):100;
   const ring=document.getElementById('ring');
   ring.dataset.p=pct;
   ring.style.background=`conic-gradient(var(--good) ${pct}%, rgba(255,255,255,.1) 0)`;
   document.getElementById('adh-num').textContent=pct+'%';
-  document.getElementById('adh-sub').textContent=`${acted} of ${total} doses taken`;
-  document.getElementById('streak').textContent=`${computeStreak()} 🔥`;
+  document.getElementById('adh-sub').textContent=`${acted} of ${countable.length} doses taken${countable.length<doses.length?' so far':''}`;
+  const streak=computeStreak();
+  const sc=streak>=7?'var(--good)':streak>=3?'var(--warn)':'var(--text)';
+  document.getElementById('streak').innerHTML=`<span style="color:${sc}">${streak}</span> 🔥`;
 
   // next dose
   const upcoming=doses.filter(x=>statusOf(x)==='due'&&tMin(x.time)>=nowMin()).sort((a,b)=>tMin(a.time)-tMin(b.time))[0];
@@ -657,10 +677,12 @@ function renderToday(){
     document.getElementById('next-sub').textContent=`${upcoming.med.name} · in ${Math.floor(diff/60)?Math.floor(diff/60)+'h ':''}${diff%60}min`;
   }else{document.getElementById('next-time').textContent='✓';document.getElementById('next-sub').textContent='All done for now';}
 
-  // refills
-  const low=state.meds.filter(m=>m.supply<=7);
+  // refills — low when a week or less of doses remains at the scheduled rate
+  const low=state.meds.filter(m=>daysOfSupply(m)<=7);
   document.getElementById('refill-num').textContent=low.length;
-  document.getElementById('refill-sub').textContent=low.length?`${low[0].name} runs low soon`:'Stock looks good';
+  document.getElementById('refill-sub').textContent=low.length===0?'Stock looks good'
+    :low.length===1?`${low[0].name} runs low soon`
+    :`${low.slice(0,2).map(m=>m.name).join(', ')}${low.length>2?` +${low.length-2} more`:''} running low`;
 
   document.getElementById('today-list').innerHTML=doses.length?doses.map(x=>doseRow(x,false)).join(''):'<div class="empty">No medications yet. Add one to get started.</div>';
 
@@ -668,17 +690,17 @@ function renderToday(){
   renderWeek('week-chart',100);
   // supply
   document.getElementById('supply-list').innerHTML=state.meds.map(m=>{
-    const days=m.supply; const pctw=Math.min(100,days/30*100);
+    const days=daysOfSupply(m); const pctw=Math.min(100,days/30*100);
     const col=days<=7?'var(--danger)':days<=14?'var(--warn)':'var(--good)';
     const dot=COLORS[m.color]||'var(--accent)';
     return `<div class="medrow"><span class="dot" style="background:${dot}"></span> ${m.name}
-      <span class="supply">${days} left</span><div class="supply-bar"><i style="width:${pctw}%;background:${col}"></i></div></div>`;
+      <span class="supply">${m.supply===0?'out':`~${days}d left`}</span><div class="supply-bar"><i style="width:${pctw}%;background:${col}"></i></div></div>`;
   }).join('')||'<div class="empty">—</div>';
 }
 
 function renderWeek(id,maxH){
   const el=document.getElementById(id);if(!el)return;
-  const days=['M','T','W','T','F','S','S'];
+  const days=['Mo','Tu','We','Th','Fr','Sa','Su'];
   const data=last7Adherence();
   el.innerHTML=data.map((v,i)=>`<div class="bar"><div class="col" style="height:${Math.max(3,v)}%;${i===6?'opacity:.55':''}"></div><small>${days[i]}</small></div>`).join('');
 }
@@ -777,12 +799,14 @@ function renderMeds(){
   document.getElementById('meds-count').textContent=`${state.meds.length} medication${state.meds.length!==1?'s':''} tracked`;
   const list=state.meds;
   document.getElementById('meds-grid').innerHTML=list.map(m=>{
-    const col=m.supply<=7?'var(--danger)':m.supply<=14?'var(--warn)':'var(--good)';
+    const daysLeft=daysOfSupply(m);
+    const col=daysLeft<=7?'var(--danger)':daysLeft<=14?'var(--warn)':'var(--good)';
+    const supplyLbl=m.supply===0?'Out of supply':`${m.supply} doses${m.times.length>1?` · ~${daysLeft}d`:''}`;
     return `<div class="card medcard">
       <div class="pill ${m.color}" style="width:48px;height:48px">${iconSvg(m.icon,m.color,26)}</div>
       <div class="info"><h3>${m.name}</h3><p>${m.dose} · ${m.form}${m.note?' · '+m.note:''}</p>
         <div class="chips">${m.times.map(t=>`<span class="chip">🕑 ${fmtTime(t)}</span>`).join('')}
-          <span class="chip" style="color:${col}">📦 ${m.supply} left</span>
+          <span class="chip" style="color:${col}">📦 ${supplyLbl}</span>
           <span class="chip">📅 ${dateRangeLabel(m)}</span></div>
         <div class="acts">
           <button class="btn sm" onclick="openMedModal(${m.id})">Edit</button>
@@ -1145,8 +1169,25 @@ function updateDropboxUI(){
   st.style.color=isConnected?'var(--good)':'var(--text-dim)';
 }
 document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeModal();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeNameModal();closeDbxSyncPrompt();}});
 
 const CHANGELOG=[
+  {ver:'Alpha 0.7.0',date:'July 2026',items:[
+    'Today adherence now excludes upcoming doses (shows how well you\'ve done so far, not against the full day)',
+    'Skipped doses now have an undo button — accidentally skipping a dose is no longer permanent',
+    '"Due now" doses shown in red to distinguish from upcoming doses',
+    '"All caught up!" message when all today\'s doses are done',
+    'Streak is now colour-coded — green for 7+ days, amber for 3–6, white otherwise',
+    'Week chart uses unambiguous day labels (Mo, Tu, We, Th, Fr, Sa, Su)',
+    'Medication supply chip shows estimated days remaining when taken more than once a day',
+    'Refill card lists all low-stock medications, not just the first one',
+    'Nav badge hides when there are no pending doses',
+    'Pressing Escape closes any open modal',
+    'Fixed: undoing a taken dose now restores the supply count (it used to stay decremented)',
+    'Low-stock warnings are now based on days remaining at your dose rate, not raw dose count',
+    'Supply levels on Today show estimated days left instead of raw dose counts',
+    'A toast nudges you to refill when you take the last dose of a medication'
+  ]},
   {ver:'Alpha 0.6.1',date:'June 2026',items:[
     'Settings page now has General and Changelog tabs'
   ]},
