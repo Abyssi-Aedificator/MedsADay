@@ -1,0 +1,18 @@
+{
+  "name": "MedsADay — Medication Tracker",
+  "short_name": "MedsADay",
+  "description": "Privacy-first medication tracker. Schedules, dose history and adherence reports, all stored locally on your device.",
+  "id": "/",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c1020",
+  "theme_color": "#0c1020",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
