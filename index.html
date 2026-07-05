@@ -581,7 +581,7 @@
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="btn primary" onclick="resolveMissed('taken',true)">✅ Already taken (no time)</button>
       <button class="btn" onclick="resolveMissed('taken',false)">🕐 Taking it now</button>
-      <button class="btn danger" onclick="resolveMissed('skipped')">✕ Skip this dose</button>
+      <button class="btn danger" onclick="resolveMissed('skipped',true)">✕ Skip this dose</button>
     </div>
     <div class="modal-acts">
       <button class="btn" onclick="dismissMissed()">Remind me later</button>
@@ -820,7 +820,7 @@ function doseRow(d,withSkip,dateKey){
       :`<button class="take-btn" title="Tap = taken now · Hold = taken (no time)" oncontextmenu="return false" onpointerdown="holdStart(event,${d.med.id},'${d.time}','${dk}')" onpointerup="holdEnd(event,${d.med.id},'${d.time}','${dk}')" onpointerleave="holdCancel()" onpointercancel="holdCancel()">✓</button>`}
     ${st==='skip'
       ?`<button class="skip-btn" title="Undo skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">↺</button>`
-      :withSkip&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">✕</button>`:''}
+      :withSkip&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}',true)">✕</button>`:''}
   </div>`;
 }
 
@@ -1406,7 +1406,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeN
 
 const CHANGELOG=[
   {ver:'x.x.x',date:'unreleased',items:[
-    'Missed-dose popup — prompts you to confirm taken (no time), taken now (with time), or skip as soon as a dose is due'
+    'Missed-dose popup — prompts you to confirm taken (no time), taken now (with time), or skip as soon as a dose is due',
+    'Skipping a dose no longer records a time — only that it was skipped'
   ]},
   {ver:'1.1.1',date:'2026-07-04',items:[
     'Light theme with theme-aware accent colours'
