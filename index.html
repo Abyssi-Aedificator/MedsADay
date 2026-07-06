@@ -298,7 +298,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.1.1</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.2.0</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -566,6 +566,29 @@
   </div>
 </div>
 
+<!-- Missed dose prompt -->
+<div class="overlay" id="missed-overlay">
+  <div class="modal" style="width:380px">
+    <h2>⏰ Missed dose</h2>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div class="pill" id="missed-pill" style="width:44px;height:44px"></div>
+      <div>
+        <b id="missed-name" style="font-size:15px;display:block"></b>
+        <span id="missed-detail" style="color:var(--text-dim);font-size:12.5px"></span>
+      </div>
+    </div>
+    <p style="color:var(--text-dim);font-size:13px;margin:0 0 18px">This dose was due at <b id="missed-time" style="color:var(--text)"></b> and hasn't been logged yet. What happened?</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn primary" onclick="resolveMissed('taken',true)">✅ Already taken (no time)</button>
+      <button class="btn" onclick="resolveMissed('taken',false)">🕐 Taking it now</button>
+      <button class="btn danger" onclick="resolveMissed('skipped',true)">✕ Skip this dose</button>
+    </div>
+    <div class="modal-acts">
+      <button class="btn" onclick="dismissMissed()">Remind me later</button>
+    </div>
+  </div>
+</div>
+
 <!-- What's new prompt -->
 <div class="overlay" id="whatsnew-overlay">
   <div class="modal" style="width:420px">
@@ -720,7 +743,48 @@ function holdEnd(e,id,time,dk){
 function holdCancel(){if(_hold.t){clearTimeout(_hold.t);_hold.t=null;}}
 
 /* ---------- rendering ---------- */
-function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory();renderReports();updateCounts();updateBackupInfo();updateReminderUI();scheduleReminders();}
+function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory();renderReports();updateCounts();updateBackupInfo();updateReminderUI();scheduleReminders();checkMissedDoses();}
+
+/* ---------- missed-dose prompt ---------- */
+let missedCurrent=null; // {medId,time,dk}
+let missedDismissedUntil={}; // "dk|medId-time" -> timestamp to re-check after
+const missedKey=(medId,time,dk)=>`${dk}|${medId}-${time}`;
+function checkMissedDoses(){
+  if(document.getElementById('missed-overlay').classList.contains('show'))return;
+  const dk=todayKey();
+  const now=Date.now();
+  // pop up as soon as a dose is overdue (its "Due now"/urgent moment), not only after the 30-min grace that flips it to "miss"
+  const candidate=dosesFor(dk).find(d=>{
+    const st=statusOf(d,dk);
+    if(st!=='due'&&st!=='miss')return false; // already taken/skipped
+    if(tMin(d.time)>nowMin())return false;   // not due yet
+    return (missedDismissedUntil[missedKey(d.med.id,d.time,dk)]||0)<now;
+  });
+  if(candidate)showMissedModal(candidate,dk);
+}
+function showMissedModal(d,dk){
+  missedCurrent={medId:d.med.id,time:d.time,dk};
+  document.getElementById('missed-pill').className=`pill ${d.med.color}`;
+  document.getElementById('missed-pill').innerHTML=iconSvg(d.med.icon,d.med.color,22);
+  document.getElementById('missed-name').textContent=d.med.name;
+  document.getElementById('missed-detail').textContent=`${d.med.dose} · ${d.med.form}`;
+  document.getElementById('missed-time').textContent=fmtTime(d.time);
+  document.getElementById('missed-overlay').classList.add('show');
+}
+function resolveMissed(status,notime){
+  if(!missedCurrent)return;
+  const{medId,time,dk}=missedCurrent;
+  document.getElementById('missed-overlay').classList.remove('show');
+  missedCurrent=null;
+  setStatus(medId,time,status,dk,notime); // setStatus already calls renderAll(), which re-checks for the next missed dose
+  toast(status==='taken'?'Marked taken':'Marked skipped');
+}
+function dismissMissed(){
+  if(missedCurrent)missedDismissedUntil[missedKey(missedCurrent.medId,missedCurrent.time,missedCurrent.dk)]=Date.now()+15*60*1000;
+  document.getElementById('missed-overlay').classList.remove('show');
+  missedCurrent=null;
+}
+document.getElementById('missed-overlay').onclick=e=>{if(e.target.id==='missed-overlay')dismissMissed();};
 
 function updateBackupInfo(){
   const meds=state.meds.length;
@@ -756,7 +820,7 @@ function doseRow(d,withSkip,dateKey){
       :`<button class="take-btn" title="Tap = taken now · Hold = taken (no time)" oncontextmenu="return false" onpointerdown="holdStart(event,${d.med.id},'${d.time}','${dk}')" onpointerup="holdEnd(event,${d.med.id},'${d.time}','${dk}')" onpointerleave="holdCancel()" onpointercancel="holdCancel()">✓</button>`}
     ${st==='skip'
       ?`<button class="skip-btn" title="Undo skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">↺</button>`
-      :withSkip&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}')">✕</button>`:''}
+      :withSkip&&st!=='taken'?`<button class="skip-btn" title="Skip" onclick="setStatus(${d.med.id},'${d.time}','skipped','${dk}',true)">✕</button>`:''}
   </div>`;
 }
 
@@ -1341,6 +1405,10 @@ document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeM
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeNameModal();closeDbxSyncPrompt();closeWhatsNew();}});
 
 const CHANGELOG=[
+  {ver:'1.2.0',date:'2026-07-05',items:[
+    'Missed-dose popup — prompts you to confirm taken (no time), taken now (with time), or skip as soon as a dose is due',
+    'Skipping a dose no longer records a time — only that it was skipped'
+  ]},
   {ver:'1.1.1',date:'2026-07-04',items:[
     'Light theme with theme-aware accent colours'
   ]},
