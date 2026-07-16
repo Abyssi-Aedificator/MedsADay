@@ -76,6 +76,7 @@
     border:1px solid var(--stroke);border-radius:10px;color:var(--text-dim);font-size:13px}
   .search input{background:transparent;border:0;outline:0;color:var(--text);width:100%;font-size:13px}
   .version{font-size:10.5px;font-weight:500;color:var(--text-dim);opacity:.7;letter-spacing:.3px;padding:2px 7px;border:1px solid var(--stroke);border-radius:20px}
+  .dev-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--warn);color:#1e1b2e;letter-spacing:.5px;margin-left:6px;vertical-align:middle}
   .nav{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--text-dim);
     cursor:pointer;font-size:13.5px;font-weight:500;position:relative;user-select:none}
   .nav:hover{background:rgba(255,255,255,.06);color:var(--text)}
@@ -171,7 +172,7 @@
   .htrack i{display:block;height:100%;border-radius:6px;transition:width .3s}
   .week{display:flex;align-items:flex-end;gap:10px;height:130px;padding-top:8px}
   .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
-  .bar .col{width:100%;border-radius:7px 7px 4px 4px;background:linear-gradient(180deg,var(--accent),rgba(124,108,255,.5));min-height:3px;transition:height .3s}
+   .bar .col{width:100%;border-radius:7px 7px 4px 4px;background:linear-gradient(180deg,var(--accent),rgba(var(--accent-2-rgb),.5));min-height:3px;transition:height .3s}
   .bar small{color:var(--text-dim);font-size:11px}
   .meds-mini{display:flex;flex-direction:column;gap:9px}
   .medrow{display:flex;align-items:center;gap:10px;font-size:12.5px}
@@ -298,7 +299,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.2.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.2.1</span><span class="dev-badge">DEV</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -747,7 +748,7 @@ function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory()
 
 /* ---------- missed-dose prompt ---------- */
 let missedCurrent=null; // {medId,time,dk}
-let missedDismissedUntil={}; // "dk|medId-time" -> timestamp to re-check after
+let missedDismissedUntil=JSON.parse(localStorage.getItem('md.dismissed')||'{}'); // "dk|medId-time" -> timestamp to re-check after
 const missedKey=(medId,time,dk)=>`${dk}|${medId}-${time}`;
 function checkMissedDoses(){
   if(document.getElementById('missed-overlay').classList.contains('show'))return;
@@ -780,7 +781,7 @@ function resolveMissed(status,notime){
   toast(status==='taken'?'Marked taken':'Marked skipped');
 }
 function dismissMissed(){
-  if(missedCurrent)missedDismissedUntil[missedKey(missedCurrent.medId,missedCurrent.time,missedCurrent.dk)]=Date.now()+15*60*1000;
+  if(missedCurrent){missedDismissedUntil[missedKey(missedCurrent.medId,missedCurrent.time,missedCurrent.dk)]=Date.now()+15*60*1000;localStorage.setItem('md.dismissed',JSON.stringify(missedDismissedUntil));}
   document.getElementById('missed-overlay').classList.remove('show');
   missedCurrent=null;
 }
@@ -868,10 +869,10 @@ function renderToday(){
     :low.length===1?`${low[0].name} runs low soon`
     :`${low.slice(0,2).map(m=>m.name).join(', ')}${low.length>2?` +${low.length-2} more`:''} running low`;
 
-  document.getElementById('today-list').innerHTML=doses.length?doses.map(x=>doseRow(x,false)).join(''):'<div class="empty">No medications yet. Add one to get started.</div>';
+  document.getElementById('today-list').innerHTML=doses.length?doses.map(x=>doseRow(x,false)).join(''):'<div class="empty">No doses scheduled for today.</div>';
 
   // week chart
-  renderWeek('week-chart',100);
+  renderWeek('week-chart');
   // supply
   document.getElementById('supply-list').innerHTML=state.meds.map(m=>{
     const days=daysOfSupply(m); const pctw=Math.min(100,days/30*100);
@@ -882,7 +883,7 @@ function renderToday(){
   }).join('')||'<div class="empty">—</div>';
 }
 
-function renderWeek(id,maxH){
+function renderWeek(id){
   const el=document.getElementById(id);if(!el)return;
   const days=['Mo','Tu','We','Th','Fr','Sa','Su'];
   const data=last7Adherence();
@@ -1339,6 +1340,7 @@ function dropboxDisconnect(){
   if(!confirm('Disconnect Dropbox? You can reconnect any time with your App key.'))return;
   clearTimeout(_syncTimer);
   dbx={appKey:dbx.appKey,accessToken:'',refreshToken:'',expiresAt:0,account:'',lastSync:'',lastSyncAt:0,dismissedRemoteAt:0,autoSync:false,autoUpload:false};dbxSave();
+  _skipAutoUpload=false;_lastUploadedState='';
   updateDropboxUI();toast('Dropbox disconnected');
 }
 
@@ -1405,6 +1407,12 @@ document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeM
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeNameModal();closeDbxSyncPrompt();closeWhatsNew();}});
 
 const CHANGELOG=[
+  {ver:'1.2.1',date:'unreleased',items:[
+    'Fixed chart bar color in light theme',
+    'Fixed empty-state message when meds exist but none scheduled today',
+    'Missed-dose dismissals now persist across page reloads',
+    'Dropbox stale state cleared on disconnect'
+  ]},
   {ver:'1.2.0',date:'2026-07-05',items:[
     'Missed-dose popup — prompts you to confirm taken (no time), taken now (with time), or skip as soon as a dose is due',
     'Skipping a dose no longer records a time — only that it was skipped'
