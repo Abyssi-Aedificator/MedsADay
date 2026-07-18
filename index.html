@@ -76,7 +76,6 @@
     border:1px solid var(--stroke);border-radius:10px;color:var(--text-dim);font-size:13px}
   .search input{background:transparent;border:0;outline:0;color:var(--text);width:100%;font-size:13px}
   .version{font-size:10.5px;font-weight:500;color:var(--text-dim);opacity:.7;letter-spacing:.3px;padding:2px 7px;border:1px solid var(--stroke);border-radius:20px}
-  .dev-badge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--warn);color:#1e1b2e;letter-spacing:.5px;margin-left:6px;vertical-align:middle}
   .nav{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:var(--text-dim);
     cursor:pointer;font-size:13.5px;font-weight:500;position:relative;user-select:none}
   .nav:hover{background:rgba(255,255,255,.06);color:var(--text)}
@@ -189,6 +188,8 @@
   .medcard .acts{display:flex;gap:6px;margin-top:10px}
   .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .chip{font-size:10.5px;padding:3px 8px;border-radius:20px;background:rgba(255,255,255,.08);color:var(--text-dim)}
+  .refill-progress{height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin:6px 0 4px}
+  .refill-progress i{display:block;height:100%;border-radius:4px;transition:width .3s}
   /* history table */
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{text-align:left;color:var(--text-dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--stroke)}
@@ -256,6 +257,7 @@
   [data-theme="light"] .icon-pick .opt{background:rgba(0,0,0,.04)}
   [data-theme="light"] .take-btn,[data-theme="light"] .skip-btn{background:rgba(0,0,0,.04)}
   [data-theme="light"] .nav .count{background:rgba(0,0,0,.08)}
+  [data-theme="light"] .refill-progress{background:rgba(0,0,0,.08)}
   [data-theme="light"] td{border-bottom-color:rgba(0,0,0,.05)}
   [data-theme="light"] tr:hover td{background:rgba(0,0,0,.02)}
   @media (max-width:640px){
@@ -299,7 +301,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.2.1</span><span class="dev-badge">DEV</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.3.0</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -524,7 +526,11 @@
     <div class="field"><label>Times (comma separated, 24h)</label><input id="m-times" placeholder="08:00, 22:00"></div>
     <div class="row">
       <div class="field"><label>Instructions</label><input id="m-note" placeholder="with food"></div>
-      <div class="field"><label>Supply (doses left)</label><input id="m-supply" type="number" placeholder="30"></div>
+      <div class="field"><label>Doses left</label><input id="m-supply" type="number" placeholder="30"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Per container</label><input id="m-refill-qty" type="number" placeholder="90 (0 = off)"></div>
+      <div class="field"><label>Refill at (days left)</label><input id="m-refill-alert" type="number" placeholder="7"></div>
     </div>
     <div class="row">
       <div class="field"><label>Start date</label><input id="m-start" type="date"></div>
@@ -669,10 +675,10 @@ function load(){
 
 function loadSample(silent){
   state={meds:[
-    {id:1,name:'Lisinopril',dose:'10 mg',form:'1 tablet',times:['08:00'],note:'with food',supply:3,icon:'pill',color:'blue',start:'2026-05-01',end:''},
-    {id:2,name:'Vitamin D3',dose:'2000 IU',form:'1 capsule',times:['08:00'],note:'',supply:48,icon:'leaf',color:'green',start:'2026-05-01',end:''},
-    {id:3,name:'Metformin',dose:'500 mg',form:'1 tablet',times:['12:30','22:00'],note:'with meals',supply:21,icon:'pill',color:'purple',start:'2026-06-10',end:''},
-    {id:4,name:'Atorvastatin',dose:'20 mg',form:'1 tablet',times:['18:00'],note:'evening',supply:9,icon:'heart',color:'orange',start:'2026-05-01',end:'2026-06-30'},
+    {id:1,name:'Lisinopril',dose:'10 mg',form:'1 tablet',times:['08:00'],note:'with food',supply:3,icon:'pill',color:'blue',start:'2026-05-01',end:'',refillQty:30,refillAlert:5},
+    {id:2,name:'Vitamin D3',dose:'2000 IU',form:'1 capsule',times:['08:00'],note:'',supply:48,icon:'leaf',color:'green',start:'2026-05-01',end:'',refillQty:90,refillAlert:14},
+    {id:3,name:'Metformin',dose:'500 mg',form:'1 tablet',times:['12:30','22:00'],note:'with meals',supply:21,icon:'pill',color:'purple',start:'2026-06-10',end:'',refillQty:60,refillAlert:7},
+    {id:4,name:'Atorvastatin',dose:'20 mg',form:'1 tablet',times:['18:00'],note:'evening',supply:9,icon:'heart',color:'orange',start:'2026-05-01',end:'2026-06-30',refillQty:0,refillAlert:7},
   ],log:{},name:state.name||'Username',reminders:state.reminders||false};
   save();
   if(!silent){renderAll();toast('Sample data loaded');}
@@ -703,6 +709,8 @@ const nowHHMM=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,
 
 // How many days a med's supply lasts at its scheduled rate (doses/day)
 const daysOfSupply=m=>m.times.length?Math.floor(m.supply/m.times.length):m.supply;
+const needsRefill=m=>m.supply===0||daysOfSupply(m)<=(m.refillAlert||7);
+const refillProgress=m=>m.refillQty?{used:m.refillQty-m.supply,total:m.refillQty,pct:Math.round((m.refillQty-m.supply)/m.refillQty*100)}:null;
 
 function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes();}
 function tMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
@@ -862,8 +870,8 @@ function renderToday(){
     document.getElementById('next-sub').textContent=`${upcoming.med.name} · in ${Math.floor(diff/60)?Math.floor(diff/60)+'h ':''}${diff%60}min`;
   }else{document.getElementById('next-time').textContent='✓';document.getElementById('next-sub').textContent='All done for now';}
 
-  // refills — low when a week or less of doses remains at the scheduled rate
-  const low=state.meds.filter(m=>daysOfSupply(m)<=7);
+  // refills — low when supply ≤ refillAlert (default 7 days)
+  const low=state.meds.filter(needsRefill);
   document.getElementById('refill-num').textContent=low.length;
   document.getElementById('refill-sub').textContent=low.length===0?'Stock looks good'
     :low.length===1?`${low[0].name} runs low soon`
@@ -875,11 +883,20 @@ function renderToday(){
   renderWeek('week-chart');
   // supply
   document.getElementById('supply-list').innerHTML=state.meds.map(m=>{
-    const days=daysOfSupply(m); const pctw=Math.min(100,days/30*100);
+    const days=daysOfSupply(m); const dot=COLORS[m.color]||'var(--accent)';
+    const p=refillProgress(m);
+    if(p&&m.refillQty){
+      const usedCol=needsRefill(m)?'var(--danger)':'var(--good)';
+      return `<div class="medrow"><span class="dot" style="background:${dot}"></span> ${m.name}
+        <span class="supply">${m.supply===0?'out':`${p.used}/${p.total} · ~${days}d left`}</span>
+        <div class="supply-bar"><i style="width:${p.pct}%;background:${usedCol};border-radius:5px"></i></div>
+        ${needsRefill(m)?`<button class="btn sm" onclick="refillMed(${m.id})" title="Refill to ${m.refillQty}">📦</button>`:''}</div>`;
+    }
     const col=days<=7?'var(--danger)':days<=14?'var(--warn)':'var(--good)';
-    const dot=COLORS[m.color]||'var(--accent)';
+    const pctw=Math.min(100,days/30*100);
     return `<div class="medrow"><span class="dot" style="background:${dot}"></span> ${m.name}
-      <span class="supply">${m.supply===0?'out':`~${days}d left`}</span><div class="supply-bar"><i style="width:${pctw}%;background:${col}"></i></div></div>`;
+      <span class="supply">${m.supply===0?'out':`~${days}d left`}</span><div class="supply-bar"><i style="width:${pctw}%;background:${col}"></i></div>
+      ${days<=7?`<button class="btn sm" onclick="refillMed(${m.id})" title="Refill">📦</button>`:''}</div>`;
   }).join('')||'<div class="empty">—</div>';
 }
 
@@ -985,6 +1002,24 @@ function renderMeds(){
   const list=state.meds;
   document.getElementById('meds-grid').innerHTML=list.map(m=>{
     const daysLeft=daysOfSupply(m);
+    const p=refillProgress(m);
+    if(p&&m.refillQty){
+      const col=needsRefill(m)?'var(--danger)':'var(--good)';
+      const supplyLbl=m.supply===0?'Out of supply':`${p.used}/${p.total} used${m.times.length>1?` · ~${daysLeft}d left`:''}`;
+      return `<div class="card medcard">
+        <div class="pill ${m.color}" style="width:48px;height:48px">${iconSvg(m.icon,m.color,26)}</div>
+        <div class="info"><h3>${m.name}</h3><p>${m.dose} · ${m.form}${m.note?' · '+m.note:''}</p>
+          <div class="chips">${m.times.map(t=>`<span class="chip">🕑 ${fmtTime(t)}</span>`).join('')}
+            <span class="chip" style="color:${col}">📦 ${supplyLbl}</span>
+            <span class="chip">📅 ${dateRangeLabel(m)}</span></div>
+          <div class="refill-progress"><i style="width:${p.pct}%;background:${col}"></i></div>
+          <div class="acts">
+            <button class="btn sm" onclick="openMedModal(${m.id})">Edit</button>
+            ${needsRefill(m)?`<button class="btn sm primary" onclick="refillMed(${m.id})">📦 Refill</button>`:''}
+            <button class="btn sm danger" onclick="deleteMed(${m.id})">Delete</button>
+          </div>
+        </div></div>`;
+    }
     const col=daysLeft<=7?'var(--danger)':daysLeft<=14?'var(--warn)':'var(--good)';
     const supplyLbl=m.supply===0?'Out of supply':`${m.supply} doses${m.times.length>1?` · ~${daysLeft}d`:''}`;
     return `<div class="card medcard">
@@ -995,6 +1030,7 @@ function renderMeds(){
           <span class="chip">📅 ${dateRangeLabel(m)}</span></div>
         <div class="acts">
           <button class="btn sm" onclick="openMedModal(${m.id})">Edit</button>
+          ${daysLeft<=7?`<button class="btn sm primary" onclick="refillMed(${m.id})">📦 Refill</button>`:''}
           <button class="btn sm danger" onclick="deleteMed(${m.id})">Delete</button>
         </div>
       </div></div>`;
@@ -1096,13 +1132,16 @@ function openMedModal(id){
     document.getElementById('m-times').value=m.times.join(', ');
     document.getElementById('m-note').value=m.note;
     document.getElementById('m-supply').value=m.supply;
+    document.getElementById('m-refill-qty').value=m.refillQty||0;
+    document.getElementById('m-refill-alert').value=m.refillAlert||7;
     document.getElementById('m-start').value=m.start||'';
     document.getElementById('m-end').value=m.end||'';
     pickIcon(iconKey(m.icon),m.color);
   }else{
     document.getElementById('modal-title').textContent='Add medication';
-    ['m-id','m-name','m-dose','m-form','m-times','m-note','m-supply','m-end'].forEach(i=>document.getElementById(i).value='');
+    ['m-id','m-name','m-dose','m-form','m-times','m-note','m-supply','m-refill-qty','m-refill-alert','m-end'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('m-start').value=todayKey(); // default new meds to start today
+    document.getElementById('m-refill-alert').value=7;
     pickIcon('pill','blue');
   }
 }
@@ -1130,6 +1169,8 @@ function saveMed(){
     form:document.getElementById('m-form').value.trim()||'1 dose',
     times,note:document.getElementById('m-note').value.trim(),
     supply:parseInt(document.getElementById('m-supply').value)||0,
+    refillQty:parseInt(document.getElementById('m-refill-qty').value)||0,
+    refillAlert:parseInt(document.getElementById('m-refill-alert').value)||7,
     start:start||'',end:end||'',
     icon:selIcon,color:selColor
   };
@@ -1140,6 +1181,15 @@ function saveMed(){
 function deleteMed(id){
   if(!confirm('Delete this medication?'))return;
   state.meds=state.meds.filter(m=>m.id!==id);save();renderAll();toast('Medication deleted');
+}
+function refillMed(id){
+  const m=state.meds.find(x=>x.id===id);
+  if(!m)return;
+  const qty=m.refillQty||parseInt(prompt(`Refill ${m.name} — how many doses?`,String(m.supply||30)));
+  if(!qty||qty<0)return;
+  m.supply=qty;
+  if(!m.refillQty)m.refillQty=qty; // first refill sets the container size
+  save();renderAll();toast(`📦 ${m.name} refilled to ${qty} doses`);
 }
 
 /* ---------- nav ---------- */
@@ -1407,6 +1457,12 @@ document.getElementById('overlay').onclick=e=>{if(e.target.id==='overlay')closeM
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeNameModal();closeDbxSyncPrompt();closeWhatsNew();}});
 
 const CHANGELOG=[
+  {ver:'1.3.0',date:'unreleased',items:[
+    'Smart refill tracker — set pills per container and refill threshold per medication',
+    'One-click refill button on medication cards and supply panel',
+    'Usage progress bar shows how many pills used vs total in current container',
+    'Refill stat card now respects per-medication refill thresholds'
+  ]},
   {ver:'1.2.1',date:'unreleased',items:[
     'Fixed chart bar color in light theme',
     'Fixed empty-state message when meds exist but none scheduled today',
