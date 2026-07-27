@@ -953,7 +953,7 @@ function perMedAdherence(days){
 function byPeriodTaken(days){
   const p={MORNING:0,NOON:0,EVENING:0,NIGHT:0};
   for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const dk=dKey(d);
-    dosesFor(dk).forEach(x=>{if(x.status==='taken')p[period(x.time)]++;});}
+    dosesFor(dk).forEach(x=>{if(x.status==='taken'&&statusOf(x,dk)!=='due')p[period(x.time)]++;});}
   return p;
 }
 function bestStreak(days){
@@ -1470,7 +1470,8 @@ const CHANGELOG=[
     'load() now validates data structure, not just JSON syntax',
     'Fixed misleading refill tooltip on non-refill medications',
     'Visual theme resets to dark on data reset',
-    'Saving a deleted medication now shows error instead of false confirmation'
+    'Saving a deleted medication now shows error instead of false confirmation',
+    'Time-of-day chart no longer counts future doses'
   ]},
   {ver:'1.3.1',date:'2026-07-20',items:[
     'Ring chart colors fixed for light theme (unfilled arc uses var(--stroke))',
