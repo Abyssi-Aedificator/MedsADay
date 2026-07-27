@@ -1,8 +1,6 @@
 # 1.4.0
 - Removed built-in changelog viewer — what's new overlay now shows a simple version notice
 - Version string read directly from the DOM instead of changelog.txt
-
-# 1.3.2
 - Best streak (Reports) no longer breaks on zero-dose days
 - load() now validates data structure, not just JSON syntax
 - Fixed misleading refill tooltip on non-refill medications
