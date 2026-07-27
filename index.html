@@ -902,7 +902,7 @@ function renderToday(){
     const pctw=Math.min(100,days/30*100);
     return `<div class="medrow"><span class="dot" style="background:${dot}"></span> ${m.name}
       <span class="supply">${m.supply===0?'out':`~${days}d left`}</span><div class="supply-bar"><i style="width:${pctw}%;background:${col}"></i></div>
-      ${days<=7?`<button class="btn sm" onclick="refillMed(${m.id})" title="Refill to ${m.supply}">📦</button>`:''}</div>`;
+      ${days<=7?`<button class="btn sm" onclick="refillMed(${m.id})" title="Refill">📦</button>`:''}</div>`;
   }).join('')||'<div class="empty">—</div>';
 }
 
@@ -1467,7 +1467,8 @@ const CHANGELOG=[
   {ver:'1.3.2',date:'unreleased',items:[
     'No changes recorded yet.',
     'Best streak (Reports) no longer breaks on zero-dose days',
-    'load() now validates data structure, not just JSON syntax'
+    'load() now validates data structure, not just JSON syntax',
+    'Fixed misleading refill tooltip on non-refill medications'
   ]},
   {ver:'1.3.1',date:'2026-07-20',items:[
     'Ring chart colors fixed for light theme (unfilled arc uses var(--stroke))',
