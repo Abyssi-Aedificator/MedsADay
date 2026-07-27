@@ -1,7 +1,7 @@
 // MedsADay service worker — offline cache + install support
 const CACHE = 'medsaday-v2';
 const ASSETS = [
-  '.', 'index.html', 'manifest.webmanifest',
+  '.', 'index.html', 'manifest.webmanifest', 'changelog.txt',
   'icon-192.png', 'icon-512.png', 'icon-maskable.png'
 ];
 
