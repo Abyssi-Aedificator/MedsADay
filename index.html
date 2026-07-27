@@ -1230,7 +1230,7 @@ function resetAll(){
   if(!confirm('Delete ALL data? This removes every medication and intake record and cannot be undone.'))return;
   localStorage.removeItem(KEY);localStorage.removeItem('md.dismissed');localStorage.removeItem('medsaday.dropbox');localStorage.removeItem('medsaday.theme');
   state={meds:[],log:{},name:'Username',reminders:state.reminders||false};
-  save();renderAll();go('today');toast('All data deleted');
+  save();renderAll();go('today');setTheme('dark');toast('All data deleted');
 }
 function exportData(){const payload={app:'MedsADay',version:1,exportedAt:new Date().toISOString(),data:state};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
@@ -1468,7 +1468,8 @@ const CHANGELOG=[
     'No changes recorded yet.',
     'Best streak (Reports) no longer breaks on zero-dose days',
     'load() now validates data structure, not just JSON syntax',
-    'Fixed misleading refill tooltip on non-refill medications'
+    'Fixed misleading refill tooltip on non-refill medications',
+    'Visual theme resets to dark on data reset'
   ]},
   {ver:'1.3.1',date:'2026-07-20',items:[
     'Ring chart colors fixed for light theme (unfilled arc uses var(--stroke))',
