@@ -1182,7 +1182,7 @@ function saveMed(){
     start:start||'',end:end||'',
     icon:selIcon,color:selColor
   };
-  if(id){const e=state.meds.find(x=>x.id===Number(id));if(e)Object.assign(e,obj);toast('Medication updated');}
+  if(id){const e=state.meds.find(x=>x.id===Number(id));if(e){Object.assign(e,obj);toast('Medication updated');}else{toast('Medication was deleted');closeModal();}}
   else{obj.id=Date.now();state.meds.push(obj);toast('Medication added');}
   save();closeModal();renderAll();
 }
@@ -1469,7 +1469,8 @@ const CHANGELOG=[
     'Best streak (Reports) no longer breaks on zero-dose days',
     'load() now validates data structure, not just JSON syntax',
     'Fixed misleading refill tooltip on non-refill medications',
-    'Visual theme resets to dark on data reset'
+    'Visual theme resets to dark on data reset',
+    'Saving a deleted medication now shows error instead of false confirmation'
   ]},
   {ver:'1.3.1',date:'2026-07-20',items:[
     'Ring chart colors fixed for light theme (unfilled arc uses var(--stroke))',
