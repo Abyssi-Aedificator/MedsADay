@@ -19,6 +19,10 @@ No build or test commands. Open `index.html` in a browser, or deploy to any stat
 
 PowerShell on Windows — use `;` not `&&` to chain commands.
 
+## Committing
+
+Each bug fix or feature change gets its own commit. Never batch unrelated changes.
+
 ## Gotchas
 
 - Version string: update both the `.version` span in the titlebar HTML and the top entry in `changelog.txt`
