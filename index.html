@@ -187,6 +187,8 @@
   th{text-align:left;color:var(--text-dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--stroke)}
   td{padding:11px 10px;border-bottom:1px solid rgba(255,255,255,.05)}
   tr:hover td{background:rgba(255,255,255,.03)}
+  .history-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
+  .history-filters .field{margin:0;flex:1;min-width:100px}
   .empty{text-align:center;color:var(--text-dim);padding:40px;font-size:13px}
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(6,8,16,.55);backdrop-filter:blur(6px);display:none;
@@ -296,7 +298,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.4.0</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.4.1</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -395,6 +397,13 @@
       <section class="page" id="page-history">
         <div class="pagehead"><div><h1>History</h1><p>Your full intake log</p></div>
           <button class="btn sm danger" onclick="clearHistory()">Clear log</button></div>
+        <div class="history-filters">
+          <div class="field"><label>From</label><input type="date" id="hf-start"></div>
+          <div class="field"><label>To</label><input type="date" id="hf-end"></div>
+          <div class="field"><label>Medication</label><select id="hf-med"><option value="">All</option></select></div>
+          <div class="field"><label>Status</label><select id="hf-status"><option value="">All</option><option value="taken">Taken</option><option value="skipped">Skipped</option></select></div>
+          <button class="btn sm" onclick="clearHistoryFilters()" style="align-self:flex-end">Clear</button>
+        </div>
         <div class="card"><table><thead><tr><th>When</th><th>Medication</th><th>Dose</th><th>Status</th></tr></thead>
           <tbody id="history-body"></tbody></table>
           <div class="empty" id="history-empty" style="display:none">No intake logged yet. Mark a dose as taken to start your history.</div>
@@ -1028,13 +1037,39 @@ function renderMeds(){
   }).join('')||'<div class="empty" style="grid-column:1/-1">No medications yet. Add one to get started.</div>';
 }
 
+/* ---------- history filters ---------- */
+let hfStart='',hfEnd='',hfMed='',hfStatus='';
+function populateHistoryFilters(){
+  const sel=document.getElementById('hf-med');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All</option>'+state.meds.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  if(cur)sel.value=cur;
+}
+function onHistoryFilterChange(){
+  hfStart=document.getElementById('hf-start').value;
+  hfEnd=document.getElementById('hf-end').value;
+  hfMed=document.getElementById('hf-med').value;
+  hfStatus=document.getElementById('hf-status').value;
+  renderHistory();
+}
+function clearHistoryFilters(){
+  ['hf-start','hf-end','hf-med','hf-status'].forEach(id=>document.getElementById(id).value='');
+  hfStart=hfEnd=hfMed=hfStatus='';
+  renderHistory();
+}
 function renderHistory(){
+  populateHistoryFilters();
   const rows=[];
   Object.keys(state.log).sort().reverse().forEach(dk=>{
     Object.keys(state.log[dk]).forEach(k=>{
       const [mid,time]=k.split(/-(?=\d{1,2}:\d{2}$)/);
       const m=state.meds.find(x=>x.id===Number(mid));if(!m)return;
       const rec=state.log[dk][k];
+      if(hfMed&&Number(m.id)!==Number(hfMed))return;
+      if(hfStatus&&logStatus(rec)!==hfStatus)return;
+      if(hfStart&&dk<hfStart)return;
+      if(hfEnd&&dk>hfEnd)return;
       rows.push({dk,time,m,status:logStatus(rec),at:logTime(rec)});
     });
   });
@@ -1531,6 +1566,12 @@ function updateReminderUI(){
 
 load();renderAll();
 checkForNewVersion();
+['hf-start','hf-end','hf-med','hf-status'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.addEventListener('change',onHistoryFilterChange);
+  if(el.tagName==='INPUT')el.addEventListener('input',onHistoryFilterChange);
+});
 updateDropboxUI();dropboxHandleRedirect();dropboxCheckForUpdates();
 setInterval(renderAll,60000); // refresh statuses each minute
 
