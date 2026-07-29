@@ -1,6 +1,20 @@
+# 1.4.1
+- History page: added date range, medication, and status filters
+- History filters include a "Clear" button to reset all filter controls
+- Streak calculation now correctly breaks (not continues) when today has doses but none taken
+- Refill now adds to existing supply instead of resetting it
+- Settings theme switch immediately updates all rendered content
+- Preserve user's theme preference when resetting all data
+- Guard against stale SVG icon colors after theme change
+- Prevent crash on corrupted localStorage by wrapping JSON.parse in try/catch
+- Prevent multi-touch collision on dose buttons (simultaneous holds)
+- Guard clearHistoryFilters against missing DOM elements
+
 # 1.4.0
 - Removed built-in changelog viewer — what's new overlay now shows a simple version notice
 - Version string read directly from the DOM instead of changelog.txt
+
+# 1.3.2
 - Best streak (Reports) no longer breaks on zero-dose days
 - load() now validates data structure, not just JSON syntax
 - Fixed misleading refill tooltip on non-refill medications
