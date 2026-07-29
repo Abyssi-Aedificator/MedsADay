@@ -967,7 +967,7 @@ function computeStreak(){
     const dk=dKey(d);
     const doses=dosesFor(dk);if(!doses.length)continue;
     const taken=doses.filter(x=>x.status==='taken').length;
-    if(i===0){ if(taken>0)s++; else continue; }
+    if(i===0){ if(taken>0)s++; else break; }
     else { if(taken/doses.length>=0.8)s++; else break; }
   }
   return s;
