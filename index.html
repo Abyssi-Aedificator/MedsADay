@@ -1055,7 +1055,7 @@ function onHistoryFilterChange(){
   renderHistory();
 }
 function clearHistoryFilters(){
-  ['hf-start','hf-end','hf-med','hf-status'].forEach(id=>document.getElementById(id).value='');
+  ['hf-start','hf-end','hf-med','hf-status'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   hfStart=hfEnd=hfMed=hfStatus='';
   renderHistory();
 }
@@ -1249,9 +1249,9 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 function clearHistory(){if(confirm('Clear all intake history?')){state.log={};save();renderAll();toast('History cleared');}}
 function resetAll(){
   if(!confirm('Delete ALL data? This removes every medication and intake record and cannot be undone.'))return;
-  localStorage.removeItem(KEY);localStorage.removeItem('md.dismissed');localStorage.removeItem('medsaday.dropbox');localStorage.removeItem('medsaday.theme');
+  localStorage.removeItem(KEY);localStorage.removeItem('md.dismissed');localStorage.removeItem('medsaday.dropbox');
   state={meds:[],log:{},name:'Username',reminders:state.reminders||false};
-  save();renderAll();go('today');setTheme('dark');toast('All data deleted');
+  save();renderAll();go('today');toast('All data deleted');
 }
 function exportData(){const payload={app:'MedsADay',version:1,exportedAt:new Date().toISOString(),data:state};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
