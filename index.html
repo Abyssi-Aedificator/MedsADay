@@ -755,7 +755,7 @@ function renderAll(){renderToday();renderSchedule();renderMeds();renderHistory()
 
 /* ---------- missed-dose prompt ---------- */
 let missedCurrent=null; // {medId,time,dk}
-let missedDismissedUntil=JSON.parse(localStorage.getItem('md.dismissed')||'{}'); // "dk|medId-time" -> timestamp to re-check after
+let missedDismissedUntil=(()=>{try{return JSON.parse(localStorage.getItem('md.dismissed')||'{}');}catch{return{};}})(); // "dk|medId-time" -> timestamp to re-check after
 const missedKey=(medId,time,dk)=>`${dk}|${medId}-${time}`;
 function checkMissedDoses(){
   if(document.getElementById('missed-overlay').classList.contains('show'))return;
