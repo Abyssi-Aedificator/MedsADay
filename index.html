@@ -658,7 +658,7 @@ function setTheme(t){
   document.getElementById('theme-color').content=t==='light'?'#f8fafc':'#0c1020';
   COLORS=t==='light'?LIGHT_COLORS:DARK_COLORS;
   document.querySelectorAll('#settings-tab-general .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.theme===t));
-  renderPickers();
+  renderPickers();renderAll();
 }
 function applySavedTheme(){
   document.documentElement.dataset.theme=theme;
