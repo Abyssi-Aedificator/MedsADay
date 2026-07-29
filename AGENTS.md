@@ -21,7 +21,7 @@ PowerShell on Windows — use `;` not `&&` to chain commands.
 
 ## Committing
 
-Each bug fix or feature change gets its own commit. Never batch unrelated changes.
+Each bug fix or feature change gets its own commit. Never batch unrelated changes. Do not include version numbers in commit descriptions.
 
 ## Gotchas
 
