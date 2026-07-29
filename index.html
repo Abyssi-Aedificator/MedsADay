@@ -1215,8 +1215,8 @@ function refillMed(id){
   if(!m)return;
   const qty=m.refillQty||parseInt(prompt(`Refill ${m.name} — how many doses?`,String(m.supply||30)));
   if(!qty||qty<0)return;
-  m.supply=qty;
-  save();renderAll();toast(`📦 ${m.name} refilled to ${qty} doses`);
+  m.supply+=qty;
+  save();renderAll();toast(`📦 ${m.name} refilled — ${m.supply} doses remaining`);
 }
 
 /* ---------- nav ---------- */
