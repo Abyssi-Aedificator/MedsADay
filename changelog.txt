@@ -1,4 +1,8 @@
-# 1.4.1
+Version 1.4.2
+- History now shows missed doses alongside taken and skipped
+- Removed clear-log button from History page
+
+Version 1.4.1
 - History page: added date range, medication, and status filters
 - History filters include a "Clear" button to reset all filter controls
 - Streak calculation now correctly breaks (not continues) when today has doses but none taken
@@ -10,11 +14,11 @@
 - Prevent multi-touch collision on dose buttons (simultaneous holds)
 - Guard clearHistoryFilters against missing DOM elements
 
-# 1.4.0
+Version 1.4.0
 - Removed built-in changelog viewer — what's new overlay now shows a simple version notice
 - Version string read directly from the DOM instead of changelog.txt
 
-# 1.3.2
+Version 1.3.2
 - Best streak (Reports) no longer breaks on zero-dose days
 - load() now validates data structure, not just JSON syntax
 - Fixed misleading refill tooltip on non-refill medications
@@ -23,7 +27,7 @@
 - Time-of-day chart no longer counts future doses
 - Username resets to default on corrupted data fallback
 
-# 1.3.1
+Version 1.3.1
 - Ring chart colors fixed for light theme (unfilled arc uses var(--stroke))
 - Sidebar, titlebar, and profile now have visible backgrounds in light theme on desktop
 - App no longer crashes on corrupted localStorage data — falls back to sample data
@@ -40,24 +44,24 @@
 - Refill button on opt-out meds no longer silently enables refill tracking
 - Various minor fixes: -webkit-backdrop-filter for Safari, btn hover transitions, strict equality, refillAlert range validation (1–365)
 
-# 1.3.0
+Version 1.3.0
 - Smart refill tracker — set pills per container and refill threshold per medication
 - One-click refill button on medication cards and supply panel
 - Usage progress bar shows how many pills used vs total in current container
 - Refill stat card now respects per-medication refill thresholds
 
-# 1.2.1
+Version 1.2.1
 - Fixed chart bar color in light theme
 - Fixed empty-state message when meds exist but none scheduled today
 - Missed-dose dismissals now persist across page reloads
 - Dropbox stale state cleared on disconnect
 
-# 1.2.0
+Version 1.2.0
 - Missed-dose popup — prompts you to confirm taken (no time), taken now (with time), or skip as soon as a dose is due
 - Skipping a dose no longer records a time — only that it was skipped
 
-# 1.1.1
+Version 1.1.1
 - Light theme with theme-aware accent colours
 
-# 1.0.0
+Version 1.0.0
 - Full release — all features stable and production-ready
