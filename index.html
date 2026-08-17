@@ -298,7 +298,7 @@
 <body>
 <div class="window">
   <div class="titlebar">
-    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.4.1</span></div>
+    <div class="brand"><span class="pill-logo">💊</span> MedsADay <span class="version">1.4.2</span></div>
     <div class="spacer"></div>
     <div class="avatar tb-avatar" title="Change name" onclick="editName()">U</div>
   </div>
@@ -395,13 +395,12 @@
 
       <!-- HISTORY -->
       <section class="page" id="page-history">
-        <div class="pagehead"><div><h1>History</h1><p>Your full intake log</p></div>
-          <button class="btn sm danger" onclick="clearHistory()">Clear log</button></div>
+        <div class="pagehead"><div><h1>History</h1><p>Your full intake log</p></div></div>
         <div class="history-filters">
           <div class="field"><label>From</label><input type="date" id="hf-start"></div>
           <div class="field"><label>To</label><input type="date" id="hf-end"></div>
           <div class="field"><label>Medication</label><select id="hf-med"><option value="">All</option></select></div>
-          <div class="field"><label>Status</label><select id="hf-status"><option value="">All</option><option value="taken">Taken</option><option value="skipped">Skipped</option></select></div>
+          <div class="field"><label>Status</label><select id="hf-status"><option value="">All</option><option value="taken">Taken</option><option value="skipped">Skipped</option><option value="miss">Missed</option></select></div>
           <button class="btn sm" onclick="clearHistoryFilters()" style="align-self:flex-end">Clear</button>
         </div>
         <div class="card"><table><thead><tr><th>When</th><th>Medication</th><th>Dose</th><th>Status</th></tr></thead>
@@ -1067,18 +1066,26 @@ function renderHistory(){
       const [mid,time]=k.split(/-(?=\d{1,2}:\d{2}$)/);
       const m=state.meds.find(x=>x.id===Number(mid));if(!m)return;
       const rec=state.log[dk][k];
-      if(hfMed&&Number(m.id)!==Number(hfMed))return;
-      if(hfStatus&&logStatus(rec)!==hfStatus)return;
-      if(hfStart&&dk<hfStart)return;
-      if(hfEnd&&dk>hfEnd)return;
       rows.push({dk,time,m,status:logStatus(rec),at:logTime(rec)});
     });
   });
-  rows.sort((a,b)=>(b.dk+b.time).localeCompare(a.dk+a.time));
+  Object.keys(state.log).forEach(dk=>{
+    dosesFor(dk).forEach(d=>{
+      if(statusOf(d,dk)==='miss')rows.push({dk,time:d.time,m:d.med,status:'miss',at:null});
+    });
+  });
+  const filtered=rows.filter(r=>{
+    if(hfMed&&Number(r.m.id)!==Number(hfMed))return false;
+    if(hfStatus&&r.status!==hfStatus)return false;
+    if(hfStart&&r.dk<hfStart)return false;
+    if(hfEnd&&r.dk>hfEnd)return false;
+    return true;
+  });
+  filtered.sort((a,b)=>(b.dk+b.time).localeCompare(a.dk+a.time));
   const body=document.getElementById('history-body');
-  document.getElementById('history-empty').style.display=rows.length?'none':'block';
-  body.innerHTML=rows.map(r=>{
-    const tag=r.status==='taken'?'<span class="tag taken">✓ Taken</span>':'<span class="tag skip">Skipped</span>';
+  document.getElementById('history-empty').style.display=filtered.length?'none':'block';
+  body.innerHTML=filtered.map(r=>{
+    const tag=r.status==='taken'?'<span class="tag taken">✓ Taken</span>':r.status==='skip'?'<span class="tag skip">Skipped</span>':'<span class="tag miss">Missed</span>';
     const dd=new Date(r.dk+'T00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'});
     const when=r.at?`${dd} · ${fmtTime(r.at)}<small style="color:var(--text-dim);display:block;font-size:10.5px">sched. ${fmtTime(r.time)}</small>`:`${dd} · ${fmtTime(r.time)}`;
     return `<tr><td>${when}</td><td><b style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${iconSvg(r.m.icon,r.m.color,16)} ${r.m.name}</b></td><td style="color:var(--text-dim)">${r.m.dose}</td><td>${tag}</td></tr>`;
@@ -1246,7 +1253,6 @@ function saveName(){
 document.getElementById('name-overlay').onclick=e=>{if(e.target.id==='name-overlay')closeNameModal();};
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.className='toast good show';
   clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
-function clearHistory(){if(confirm('Clear all intake history?')){state.log={};save();renderAll();toast('History cleared');}}
 function resetAll(){
   if(!confirm('Delete ALL data? This removes every medication and intake record and cannot be undone.'))return;
   localStorage.removeItem(KEY);localStorage.removeItem('md.dismissed');localStorage.removeItem('medsaday.dropbox');
